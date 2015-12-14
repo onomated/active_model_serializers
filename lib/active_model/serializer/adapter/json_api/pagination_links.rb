@@ -1,3 +1,6 @@
+# https://github.com/rails-api/active_model_serializers/pull/1041#discussion_r37373943
+# https://github.com/rails-api/active_model_serializers/pull/1041#discussion_r37346434
+# https://github.com/rails-api/active_model_serializers/pull/1041#discussion_r37344511
 require 'uri/http'
 module ActiveModel
   class Serializer
@@ -7,6 +10,32 @@ module ActiveModel
           FIRST_PAGE = 1
 
           attr_reader :collection, :context
+          class Paginatable
+            attr_reader :pages, :total_pages, :current_page, :number_of_items
+            def initialize(collection)
+              @collection = collection
+              @total_pages = collection.total_pages
+              @current_page = collection.current_page
+              @number_of_items = collection.size
+              @pages = {}
+            end
+
+            def build_pages
+              if total_pages != FIRST_PAGE
+                pages[:self] = current_page
+
+                if current_page != FIRST_PAGE
+                  pages[:first] = FIRST_PAGE
+                  pages[:prev]  = current_page - FIRST_PAGE
+                end
+
+                if current_page != total_pages
+                  pages[:next] = current_page + FIRST_PAGE
+                  pages[:last] = total_pages
+                end
+              end
+            end
+          end
 
           def initialize(collection, context)
             @collection = collection
@@ -23,40 +52,6 @@ module ActiveModel
           end
 
           private
-
-          def serializable_hash_for_collection(*)
-            hash = super
-            if serializer.paginated?
-              hash[:links] ||= {}
-              hash[:links].update(pagination_links_for(serializer, options))
-            end
-            hash
-          end
-
-          def pagination_links_for(serializer, options)
-            JsonApi::PaginationLinks.new(serializer.object, options[:serialization_context]).serializable_hash(options)
-          end
-
-          def pages
-            total_pages     = collection.total_pages
-            current_page    = collection.current_page
-
-            pages = {}
-            if total_pages != FIRST_PAGE
-              pages[:self] = current_page
-
-              if current_page != FIRST_PAGE
-                pages[:first] = FIRST_PAGE
-                pages[:prev]  = current_page - FIRST_PAGE
-              end
-
-              if current_page != total_pages
-                pages[:next] = current_page + FIRST_PAGE
-                pages[:last] = total_pages
-              end
-            end
-            pages
-          end
 
           def page_link(page_uri_params, page_number)
             @number_of_items ||= collection.size
