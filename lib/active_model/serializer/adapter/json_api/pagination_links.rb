@@ -24,6 +24,19 @@ module ActiveModel
 
           private
 
+          def serializable_hash_for_collection(*)
+            hash = super
+            if serializer.paginated?
+              hash[:links] ||= {}
+              hash[:links].update(pagination_links_for(serializer, options))
+            end
+            hash
+          end
+
+          def pagination_links_for(serializer, options)
+            JsonApi::PaginationLinks.new(serializer.object, options[:serialization_context]).serializable_hash(options)
+          end
+
           def pages
             total_pages     = collection.total_pages
             current_page    = collection.current_page

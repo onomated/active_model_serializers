@@ -92,12 +92,6 @@ module ActiveModel
 
           included.delete_if { |resource| hash[:data].include?(resource) }
           hash[:included] = included if included.any?
-
-          if serializer.paginated?
-            hash[:links] ||= {}
-            hash[:links].update(pagination_links_for(serializer, options))
-          end
-
           hash
         end
 
@@ -219,10 +213,6 @@ module ActiveModel
                 value
               end
           end
-        end
-
-        def pagination_links_for(serializer, options)
-          JsonApi::PaginationLinks.new(serializer.object, options[:serialization_context]).serializable_hash(options)
         end
       end
     end
