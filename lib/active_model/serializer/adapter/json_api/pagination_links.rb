@@ -1,3 +1,4 @@
+require 'uri/http'
 module ActiveModel
   class Serializer
     module Adapter
@@ -12,36 +13,54 @@ module ActiveModel
             @context = context
           end
 
-          def serializable_hash(options = {})
-            pages_from.each_with_object({}) do |(key, value), hash|
-              params = query_parameters.merge(page: { number: value, size: collection.size }).to_query
+          def serializable_hash(options = nil)
+            options ||= {}
 
-              hash[key] = "#{url(options)}?#{params}"
+            page_uri_params = page_uri_params(options)
+            pages.each_with_object({}) do |(page_name, page_number), pagination_links|
+              pagination_links[page_name] = page_link(page_uri_params.dup, page_number)
             end
           end
 
           private
 
-          def pages_from
-            return {} if collection.total_pages == FIRST_PAGE
+          def pages
+            total_pages     = collection.total_pages
+            current_page    = collection.current_page
 
-            {}.tap do |pages|
-              pages[:self] = collection.current_page
+            pages = {}
+            if total_pages != FIRST_PAGE
+              pages[:self] = current_page
 
-              unless collection.current_page == FIRST_PAGE
+              if current_page != FIRST_PAGE
                 pages[:first] = FIRST_PAGE
-                pages[:prev]  = collection.current_page - FIRST_PAGE
+                pages[:prev]  = current_page - FIRST_PAGE
               end
 
-              unless collection.current_page == collection.total_pages
-                pages[:next] = collection.current_page + FIRST_PAGE
-                pages[:last] = collection.total_pages
+              if current_page != total_pages
+                pages[:next] = current_page + FIRST_PAGE
+                pages[:last] = total_pages
               end
             end
+            pages
           end
 
-          def url(options)
-            @url ||= options.fetch(:links, {}).fetch(:self, nil) || request_url
+          def page_link(page_uri_params, page_number)
+            @number_of_items ||= collection.size
+
+            page_link = {  page: { number: page_number, size: @number_of_items } }
+            query_string = query_parameters.merge(page_link).to_query
+            page_uri_params[:query] = query_string
+            URI::HTTP.build(page_uri_params).to_s
+          end
+
+          def page_uri(options)
+            @page_uri ||= URI(options.fetch(:links, {}).fetch(:self, nil) || request_url)
+          end
+
+          def page_uri_params(options)
+            page_uri = page_uri(options)
+            { scheme: page_uri.scheme, host: page_uri.host, path: page_uri.path }
           end
 
           def request_url
