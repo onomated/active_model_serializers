@@ -90,24 +90,24 @@ module Benchmarking
     def blog
       Blog.new(id: 999, name: 'Custom blog')
     end
-    class CommentSerializer < ActiveModel::Serializer
-      cache expires_in: 1.day, skip_digest: true
-      attributes :id, :body
+  end
+  class CommentSerializer < ActiveModel::Serializer
+    cache expires_in: 1.day, skip_digest: true
+    attributes :id, :body
 
-      belongs_to :post
-      belongs_to :author
-    end
-    class AuthorSerializer < ActiveModel::Serializer
-      cache key: 'writer', skip_digest: true
-      attribute :id
-      attribute :name
+    belongs_to :post
+    belongs_to :author
+  end
+  class AuthorSerializer < ActiveModel::Serializer
+    cache key: 'writer', skip_digest: true
+    attribute :id
+    attribute :name
 
-      has_many :posts
-    end
-    class BlogSerializer < ActiveModel::Serializer
-      cache key: 'blog'
-      attributes :id, :name
-    end
+    has_many :posts
+  end
+  class BlogSerializer < ActiveModel::Serializer
+    cache key: 'blog'
+    attributes :id, :name
   end
 end
 
