@@ -5,19 +5,7 @@ ams_dir = Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__
 ENV['AMS_DIR'] = ams_dir.to_path
 LIB_PATH = ams_dir.join("lib")
 # Use absolute path so we can run benchmark in tempdir
-$LOAD_PATH.unshift(LIB_PATH.to_path)
-require "pathname"
-# ams_dir = Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__)
-# LIB_PATH = ams_dir.join("lib")
-# # Use absolute path so we can run benchmark in tempdir
-# $LOAD_PATH.unshift(LIB_PATH.to_s)
-require 'bundler/setup'
-require 'rails'
-require 'action_controller'
-require 'action_controller/test_case'
-require 'action_controller/railtie'
-require 'active_support/json'
-require 'active_model_serializers'
+$LOAD_PATH.unshift(LIB_PATH.to_s)
 # usage:
 # bin/run-ruby-file-on-git-revisions start_rev end_rev path/to/ruby_file.rb
 # example:
@@ -55,6 +43,8 @@ def run(cmd)
   result
 end
 
+git_runner_path = 'bin/run-command-on-git-revisions'
+
 args = ARGV.to_a
 if args.size != 3
   fail 'expecting three arguments: start_rev end_rev path_to_ruby_file'
@@ -66,18 +56,24 @@ require 'tempfile'
 require 'fileutils'
 
 tmp_file_name = ruby_file_path.gsub(/[\/\.]/, '_')
+tmp_git_runner_name = git_runner_path.gsub(/[\/\.]/, '_')
 ensure_gems_command = "rm -f Gemfile.lock && bundle check || bundle --local --path vendor/bundle || bundle --path vendor/bundle && gem install benchmark-ips --conservative"
 Tempfile.open('log') do |log_file|
+  runner_file = Tempfile.new(tmp_git_runner_name)
   file = Tempfile.new(tmp_file_name)
   begin
+    runner_file.write File.read(git_runner_path)
+    runner_file.close
     file.write File.read(ruby_file_path)
     file.close
-    run '$AMS_DIR/bin/run-command-on-git-revisions -v '\
+    run '%s -v '\
       "%s %s '#{ensure_gems_command} && ruby %s' 2>&1 | tee %s" %
-      [start_rev, end_rev, file.path, log_file.path]
+      [runner_file.path, start_rev, end_rev, file.path, log_file.path]
   ensure
     file.close unless file.closed?
     file.unlink   # deletes the temp file
+    runner_file.close unless runner_file.closed?
+    runner_file.unlink
   end
 
   new_log_file_path = "/tmp/#{tmp_file_name}.log"
