@@ -212,7 +212,7 @@ def compare_result(expected, actual, tolerance = 0.13)
   #   end
   # end
 end
-def bench!(strategy = ->{}, iters = 200_000_0)
+def bench!(strategy = ->{}, iters = 10_000)
   strategy.call(10)
   Benchmark.measure {
     strategy.call(iters)
