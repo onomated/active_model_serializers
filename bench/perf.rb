@@ -145,7 +145,7 @@ p [serializer.class._cache, ActionController::Base.cache_store].tap {|a| a.unshi
 p [serializer.class._cache_options, {expires_in: 0.1, skip_digest: true }].tap {|a| a.unshift(a[0] == a[1]) }
 p [serializer.class._cache_key, post.cache_key] #.tap {|a| a.unshift(a[0] == a[1]) }
 p [serialization.serializable_hash, ActiveModel::Serializer.config.cache_store.fetch(post.cache_key)].tap {|a| a.unshift(a[0] == a[1]) }
-p [serializer.class._cache_digest, Digest::MD5.hexdigest(IO.read(__FILE__))].tap {|a| a.unshift(a[0] == a[1]) }
+# p [serializer.class._cache_digest, Digest::MD5.hexdigest(IO.read(__FILE__))].tap {|a| a.unshift(a[0] == a[1]) }
 p [serializer.class._cache_only]
 p [serializer.class._cache_except]
 p [serialization.serializable_hash, expected].tap {|a| a.unshift(a[0] == a[1]) }

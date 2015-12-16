@@ -41,8 +41,6 @@ def run(cmd)
     exit exitstatus || 1
   end
   result
-ensure
-  `git checkout -` if $? && $?.success? == false
 end
 
 git_runner_path = 'bin/run-command-on-git-revisions'
