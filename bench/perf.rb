@@ -116,7 +116,9 @@ comment = Benchmarking::Comment.new({ id: 1, body: 'ZOMG A COMMENT' })
 author  = Benchmarking::Author.new(id: 1, name: 'Joao Moura.')
 post    = Benchmarking::Post.new({ id: 1, title: 'New Post', blog:nil, body: 'Body', comments: [comment], author: author })
 serializer = Benchmarking::PostSerializer.new(post)
-serialization = ActiveModel::SerializableResource.new(post, serializer: Benchmarking::PostSerializer, adapter: :attributes)
+adapter = ActiveModel::Serializer::Adapter.create(serializer, adapter: :attributes)
+serialization = adapter
+# serialization = ActiveModel::SerializableResource.new(post, serializer: Benchmarking::PostSerializer, adapter: :attributes)
 expected_attributes = {
   id: 1,
   title: 'New Post',
