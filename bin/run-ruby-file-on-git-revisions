@@ -57,7 +57,7 @@ require 'fileutils'
 
 tmp_file_name = ruby_file_path.gsub(/[\/\.]/, '_')
 tmp_git_runner_name = git_runner_path.gsub(/[\/\.]/, '_')
-ensure_gems_command = "rm -f Gemfile.lock && bundle check || bundle --local --path vendor/bundle || bundle --path vendor/bundle && gem install benchmark-ips --conservative"
+ensure_gems_command = ""
 Tempfile.open('log') do |log_file|
   runner_file = Tempfile.new(tmp_git_runner_name)
   file = Tempfile.new(tmp_file_name)
