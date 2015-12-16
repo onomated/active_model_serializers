@@ -114,13 +114,84 @@ end
 define_method(:after_run) do
   # p ActiveModel::Serializer.config.cache_store
 end
-require "benchmark/ips"
-puts "Running Benchmark.ips"
-reports = Benchmark.ips do |x|
-  # the warmup phase (default 2) and calculation phase (default 5)
-  x.config(time: 5, warmup: 2)
+# require "benchmark/ips"
+# puts "Running Benchmark.ips"
+n = 10_000
+# reports = Benchmark.bmbm do |x|
+# # reports = Benchmark.ips do |x|
+# #   # the warmup phase (default 2) and calculation phase (default 5)
+# #   x.config(time: 5, warmup: 2)
+#
+#   x.report("caching")  do |times|
+#     times ||= n
+#     Process.waitpid2(fork do
+#       cache_on(true)
+#       i = 0
+#       while i < times
+#         run_example_code
+#         i += 1
+#       end
+#     end)
+#     after_run
+#   end
+#
+#   x.report("no caching")  do |times|
+#     times ||= n
+#     Process.waitpid2(fork do
+#       cache_on(false)
+#       i = 0
+#       while i < times
+#         run_example_code
+#         i += 1
+#       end
+#     end)
+#     after_run
+#   end
+#
+#   # x.compare!
+# end
+def compare_result(expected, actual, tolerance = 0.13)
+  p expected_result = parse_result(expected)
+  p actual_result = parse_result(actual)
 
-  x.report("caching")  do |times|
+  expected_result.each do |timing, value|
+    begin
+      # expect(actual_result[timing] / value).to be_within(tolerance).of(1.0)
+      p [timing, actual_result[timing] / value, tolerance]
+    rescue
+      STDOUT.puts "Timing: #{timing},  #{actual_result[timing] / value} should be within #{tolerance} of 1.0"
+      raise
+    end
+  end
+end
+def bench!(strategy = ->{}, iters = 200_000_0)
+  strategy.call(10)
+  Benchmark.measure {
+    strategy.call(iters)
+  }
+end
+def parse_result(result)
+  if result.respond_to?(:utime)
+    user = result.utime
+    system = result.stime
+    total = result.total
+    real = result.real
+  else
+    user, system, total, real = result.strip.
+      gsub(/[^0-9\. ]/, '').
+      split(/\s+/).
+      map { |time| Float(time) }
+  end
+  {
+    :user => user,
+    :system => system,
+    :total => total,
+    :real => real,
+  }
+end
+
+STRATEGIES = {
+  'caching' => ->(times) do
     Process.waitpid2(fork do
       cache_on(true)
       i = 0
@@ -130,9 +201,9 @@ reports = Benchmark.ips do |x|
       end
     end)
     after_run
-  end
+  end,
 
-  x.report("no caching")  do |times|
+  'no caching' => ->(times)  do
     Process.waitpid2(fork do
       cache_on(false)
       i = 0
@@ -143,9 +214,16 @@ reports = Benchmark.ips do |x|
     end)
     after_run
   end
-
-  x.compare!
-end
+}
+results = {
+  'caching'            => "1.480000   0.160000   1.640000 (  1.976294)", # 0 UPDATES
+  'no caching'          => "1.520000   0.150000   1.670000 (  2.014452)", # 0 UPDATES
+}.map { |test_name, _|
+  result = bench!(STRATEGIES.fetch(test_name))
+  puts "\tCurrent run result: #{result.to_s.strip}, -- #{test_name}"
+  result
+}
+compare_result(*results)
 # https://github.com/rails-api/active_model_serializers/pull/810#issuecomment-89870165
 # Update: here are the numbers I got:
 #
