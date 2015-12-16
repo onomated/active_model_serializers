@@ -14,23 +14,56 @@ require 'active_model_serializers'
 ActiveModel::Serializer.config.cache_store ||= ActiveSupport::Cache.lookup_store(ActionController::Base.cache_store || Rails.cache || :memory_store)
 
 module Benchmarking
-  class Comment < ActiveModelSerializers::Model
+  class Model
+    include ActiveModel::Model
+    include ActiveModel::Serializers::JSON
+
+    attr_reader :attributes
+
+    def initialize(attributes = {})
+      @attributes = attributes
+      super
+    end
+
+    # Defaults to the downcased model name.
+    def id
+      attributes.fetch(:id) { self.class.name.downcase }
+    end
+
+    # Defaults to the downcased model name and updated_at
+    def cache_key
+      attributes.fetch(:cache_key) { "#{self.class.name.downcase}/#{id}-#{updated_at.strftime("%Y%m%d%H%M%S%9N")}" }
+    end
+
+    # Defaults to the time the serializer file was modified.
+    def updated_at
+      attributes.fetch(:updated_at) { File.mtime(__FILE__) }
+    end
+
+    def read_attribute_for_serialization(key)
+      if key == :id || key == 'id'
+        attributes.fetch(key) { id }
+      else
+        attributes[key]
+      end
+    end
+  class Comment < Model
     attr_accessor :id, :body
 
     def cache_key
       "#{self.class.name.downcase}/#{self.id}"
     end
   end
-  class Author < ActiveModelSerializers::Model
+  class Author < Model
     attr_accessor :id, :name
   end
-  class Post < ActiveModelSerializers::Model
+  class Post < Model
     attr_accessor :id, :title, :blog, :body, :comments, :author
     def cache_key
       "benchmarking::post/1-20151215212620000000000"
     end
   end
-  class Blog < ActiveModelSerializers::Model
+  class Blog < Model
     attr_accessor :id, :name
   end
   class PostSerializer < ActiveModel::Serializer
