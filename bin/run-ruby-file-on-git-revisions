@@ -1,0 +1,68 @@
+#!/usr/bin/env ruby
+
+ENV['AMS_DIR'] = File.expand_path(['..', '..'].join(File::Separator), __FILE__)
+# usage:
+# bin/run-ruby-file-on-git-revisions start_rev end_rev path/to/ruby_file.rb
+# example:
+# bin/run-ruby-file-on-git-revisions 38a62b1eae357^ cache_fix bench/perf.rb
+require 'pty'
+# should consider trapping SIGINT in here
+def run(cmd)
+  puts cmd
+  child_process = ''
+  result = ''
+  # http://stackoverflow.com/a/1162850
+  # stream output of subprocess
+  begin
+    PTY.spawn(cmd) do |stdin, _stdout, pid|
+      begin
+        # Do stuff with the output here. Just printing to show it works
+        stdin.each do |line|
+          print line
+          result << line
+        end
+        child_process = PTY.check(pid)
+      rescue Errno::EIO
+        puts 'Errno:EIO error, but this probably just means ' \
+              'that the process has finished giving output'
+      end
+    end
+  rescue PTY::ChildExited
+    puts 'The child process exited!'
+  end
+  unless child_process.success?
+    exitstatus = child_process.exitstatus
+    puts "FAILED: #{child_process.pid} exited with status #{exitstatus.inspect} due to failed command #{cmd}"
+    exit exitstatus || 1
+  end
+  result
+end
+
+args = ARGV.to_a
+if args.size != 3
+  fail 'expecting three arguments: start_rev end_rev path_to_ruby_file'
+end
+(start_rev, end_rev, ruby_file_path) = args
+fail "#{ruby_file_path} not readable" unless File.readable?(ruby_file_path)
+
+require 'tempfile'
+require 'fileutils'
+
+tmp_file_name = ruby_file_path.gsub(/[\/\.]/, '_')
+Tempfile.open('log') do |log_file|
+  file = Tempfile.new(tmp_file_name)
+  begin
+    file.write File.read(ruby_file_path)
+    file.close
+    run '$AMS_DIR/bin/run-command-on-git-revisions -v '\
+      "%s %s 'ruby %s' 2>&1 | tee %s" %
+      [start_rev, end_rev, file.path, log_file.path]
+  ensure
+    file.close unless file.closed?
+    file.unlink   # deletes the temp file
+  end
+
+  new_log_file_path = "/tmp/#{tmp_file_name}.log"
+  FileUtils.cp(log_file.path, new_log_file_path)
+  puts "Log file is at #{new_log_file_path}"
+end
