@@ -2,10 +2,22 @@
 
 require 'pathname'
 ams_dir = Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__)
-p ENV['AMS_DIR'] = ams_dir.to_path
+ENV['AMS_DIR'] = ams_dir.to_path
 LIB_PATH = ams_dir.join("lib")
 # Use absolute path so we can run benchmark in tempdir
-$LOAD_PATH.unshift(LIB_PATH.to_s)
+$LOAD_PATH.unshift(LIB_PATH.to_path)
+require "pathname"
+# ams_dir = Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__)
+# LIB_PATH = ams_dir.join("lib")
+# # Use absolute path so we can run benchmark in tempdir
+# $LOAD_PATH.unshift(LIB_PATH.to_s)
+# require 'bundler/setup'
+require 'rails'
+require 'action_controller'
+require 'action_controller/test_case'
+require 'action_controller/railtie'
+require 'active_support/json'
+require 'active_model_serializers'
 # usage:
 # bin/run-ruby-file-on-git-revisions start_rev end_rev path/to/ruby_file.rb
 # example:
