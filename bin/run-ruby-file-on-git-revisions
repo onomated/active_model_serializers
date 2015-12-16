@@ -11,7 +11,7 @@ require "pathname"
 # LIB_PATH = ams_dir.join("lib")
 # # Use absolute path so we can run benchmark in tempdir
 # $LOAD_PATH.unshift(LIB_PATH.to_s)
-# require 'bundler/setup'
+require 'bundler/setup'
 require 'rails'
 require 'action_controller'
 require 'action_controller/test_case'
