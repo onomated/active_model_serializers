@@ -12,7 +12,6 @@ require 'active_support/json'
 ActionController::Base.cache_store = :memory_store
 require 'active_model_serializers'
 ActiveModel::Serializer.config.cache_store ||= ActiveSupport::Cache.lookup_store(ActionController::Base.cache_store || Rails.cache || :memory_store)
-require 'benchmark/ips'
 
 module Benchmarking
   class Comment < ActiveModelSerializers::Model
