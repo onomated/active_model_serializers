@@ -47,6 +47,7 @@ module Benchmarking
         attributes[key]
       end
     end
+  end
   class Comment < Model
     attr_accessor :id, :body
 
