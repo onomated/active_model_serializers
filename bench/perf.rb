@@ -14,6 +14,18 @@ require 'active_model_serializers'
 ActiveModel::Serializer.config.cache_store ||= ActiveSupport::Cache.lookup_store(ActionController::Base.cache_store || Rails.cache || :memory_store)
 
 module Benchmarking
+  module RailsApp
+    class Application < Rails::Application
+      config.secret_token = routes.append {
+        root to: proc {
+          [200, {"Content-Type" => "text/html"}, []]
+        }
+      }.to_s
+      config.root = root
+      config.active_support.deprecation = :log
+      config.eager_load = false
+    end
+  end
   class Model
     include ActiveModel::Model
     include ActiveModel::Serializers::JSON
@@ -149,7 +161,7 @@ define_method(:after_run) do
 end
 # require "benchmark/ips"
 # puts "Running Benchmark.ips"
-n = 10_000
+# n = 10_000
 # reports = Benchmark.bmbm do |x|
 # # reports = Benchmark.ips do |x|
 # #   # the warmup phase (default 2) and calculation phase (default 5)
