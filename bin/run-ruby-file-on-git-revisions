@@ -41,6 +41,8 @@ def run(cmd)
     exit exitstatus || 1
   end
   result
+ensure
+  `git checkout -` if $? && $?.success? == false
 end
 
 git_runner_path = 'bin/run-command-on-git-revisions'
@@ -70,7 +72,6 @@ Tempfile.open('log') do |log_file|
       "%s %s '#{ensure_gems_command} && ruby %s' 2>&1 | tee %s" %
       [runner_file.path, start_rev, end_rev, file.path, log_file.path]
   ensure
-    `git checkout -` if $? && $?.success? == false
     file.close unless file.closed?
     file.unlink   # deletes the temp file
     runner_file.close unless runner_file.closed?
