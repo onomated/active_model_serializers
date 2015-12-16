@@ -140,15 +140,15 @@ expected_associations = {
   }
 }
 expected = expected_attributes.merge(expected_associations)
-p [serializer.attributes, expected_attributes].tap {|a| a.unshift(a[0] == a[1]) }
-p [serializer.class._cache, ActionController::Base.cache_store].tap {|a| a.unshift(a[0] == a[1]) }
-p [serializer.class._cache_options, {expires_in: 0.1, skip_digest: true }].tap {|a| a.unshift(a[0] == a[1]) }
-p [serializer.class._cache_key, post.cache_key] #.tap {|a| a.unshift(a[0] == a[1]) }
-p [serialization.serializable_hash, ActiveModel::Serializer.config.cache_store.fetch(post.cache_key)].tap {|a| a.unshift(a[0] == a[1]) }
-# p [serializer.class._cache_digest, Digest::MD5.hexdigest(IO.read(__FILE__))].tap {|a| a.unshift(a[0] == a[1]) }
-p [serializer.class._cache_only]
-p [serializer.class._cache_except]
-p [serialization.serializable_hash, expected].tap {|a| a.unshift(a[0] == a[1]) }
+# p [serializer.attributes, expected_attributes].tap {|a| a.unshift(a[0] == a[1]) }
+# p [serializer.class._cache, ActionController::Base.cache_store].tap {|a| a.unshift(a[0] == a[1]) }
+# p [serializer.class._cache_options, {expires_in: 0.1, skip_digest: true }].tap {|a| a.unshift(a[0] == a[1]) }
+# p [serializer.class._cache_key, post.cache_key] #.tap {|a| a.unshift(a[0] == a[1]) }
+# p [serialization.serializable_hash, ActiveModel::Serializer.config.cache_store.fetch(post.cache_key)].tap {|a| a.unshift(a[0] == a[1]) }
+# # p [serializer.class._cache_digest, Digest::MD5.hexdigest(IO.read(__FILE__))].tap {|a| a.unshift(a[0] == a[1]) }
+# p [serializer.class._cache_only]
+# p [serializer.class._cache_except]
+# p [serialization.serializable_hash, expected].tap {|a| a.unshift(a[0] == a[1]) }
 define_method(:cache_on) do |caching_on|
   ActiveModel::Serializer.config.cache_store.clear
   ActiveModel::Serializer.config.perform_caching = caching_on
@@ -198,18 +198,19 @@ end
 #   # x.compare!
 # end
 def compare_result(expected, actual, tolerance = 0.13)
-  p expected_result = parse_result(expected)
-  p actual_result = parse_result(actual)
+  expected_result = parse_result(expected)
+  actual_result = parse_result(actual)
+  p [expected_result, actual_result]
 
-  expected_result.each do |timing, value|
-    begin
-      # expect(actual_result[timing] / value).to be_within(tolerance).of(1.0)
-      p [timing, actual_result[timing] / value, tolerance]
-    rescue
-      STDOUT.puts "Timing: #{timing},  #{actual_result[timing] / value} should be within #{tolerance} of 1.0"
-      raise
-    end
-  end
+  # expected_result.each do |timing, value|
+  #   begin
+  #     # expect(actual_result[timing] / value).to be_within(tolerance).of(1.0)
+  #     p [timing, actual_result[timing] / value, tolerance]
+  #   rescue
+  #     STDOUT.puts "Timing: #{timing},  #{actual_result[timing] / value} should be within #{tolerance} of 1.0"
+  #     raise
+  #   end
+  # end
 end
 def bench!(strategy = ->{}, iters = 200_000_0)
   strategy.call(10)
