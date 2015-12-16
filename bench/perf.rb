@@ -1,9 +1,9 @@
 require "pathname"
-ams_dir = Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__)
-LIB_PATH = ams_dir.join("lib")
-# Use absolute path so we can run benchmark in tempdir
-$LOAD_PATH.unshift(LIB_PATH.to_s)
-require 'bundler/setup'
+# ams_dir = Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__)
+# LIB_PATH = ams_dir.join("lib")
+# # Use absolute path so we can run benchmark in tempdir
+# $LOAD_PATH.unshift(LIB_PATH.to_s)
+# require 'bundler/setup'
 require 'rails'
 require 'action_controller'
 require 'action_controller/test_case'

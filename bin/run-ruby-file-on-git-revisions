@@ -1,6 +1,11 @@
 #!/usr/bin/env ruby
 
-ENV['AMS_DIR'] = File.expand_path(['..', '..'].join(File::Separator), __FILE__)
+require 'pathname'
+ams_dir = Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__)
+p ENV['AMS_DIR'] = ams_dir.to_path
+LIB_PATH = ams_dir.join("lib")
+# Use absolute path so we can run benchmark in tempdir
+$LOAD_PATH.unshift(LIB_PATH.to_s)
 # usage:
 # bin/run-ruby-file-on-git-revisions start_rev end_rev path/to/ruby_file.rb
 # example:
@@ -49,13 +54,14 @@ require 'tempfile'
 require 'fileutils'
 
 tmp_file_name = ruby_file_path.gsub(/[\/\.]/, '_')
+ensure_gems_command = "rm -f Gemfile.lock && bundle check || bundle --local --path vendor/bundle || bundle --path vendor/bundle && gem install benchmark-ips --conservative"
 Tempfile.open('log') do |log_file|
   file = Tempfile.new(tmp_file_name)
   begin
     file.write File.read(ruby_file_path)
     file.close
     run '$AMS_DIR/bin/run-command-on-git-revisions -v '\
-      "%s %s 'ruby %s' 2>&1 | tee %s" %
+      "%s %s '#{ensure_gems_command} && ruby %s' 2>&1 | tee %s" %
       [start_rev, end_rev, file.path, log_file.path]
   ensure
     file.close unless file.closed?
