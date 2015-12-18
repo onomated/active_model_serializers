@@ -9,6 +9,7 @@ module ActiveModel
 
         def cache_check(adapter_instance)
           if cached?
+            p [cache_key, adapter_instance, @klass._cache, @klass._cache_options]
             @klass._cache.fetch(cache_key, @klass._cache_options) do
               yield
             end

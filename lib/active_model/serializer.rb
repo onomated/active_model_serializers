@@ -221,6 +221,8 @@ module ActiveModel
       if self.class._serializer_instance_method_defined?(attr)
         send(attr)
       elsif self.class._fragmented
+        # fail [attr, object, object.read_attribute_for_serialization(attr), self.class._fragmented, self.class._fragmented.read_attribute_for_serialization(attr), self.class, caller[0..9]].join("\t\n")
+        # exit!
         self.class._fragmented.read_attribute_for_serialization(attr)
       else
         object.read_attribute_for_serialization(attr)
