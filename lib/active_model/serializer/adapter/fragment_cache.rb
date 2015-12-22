@@ -16,6 +16,7 @@ module ActiveModel
         # 2. Serialize the above two with the given adapter
         # 3. Pass their serializations to the adapter +::fragment_cache+
         def fetch
+          p [__callee__]
           klass = serializer.class
           # It will split the serializer into two, one that will be cached and one that will not
           serializers = fragment_serializer(serializer.object.class.name, klass)
@@ -46,6 +47,7 @@ module ActiveModel
         # 2. Add cached attributes to cached Serializer
         # 3. Add non-cached attributes to non-cached Serializer
         def cached_attributes(klass, serializers)
+          p [__callee__, klass, serializers]
           attributes            = serializer.class._attributes
           cached_attributes     = (klass._cache_only) ? klass._cache_only : attributes.reject { |attr| klass._cache_except.include?(attr) }
           non_cached_attributes = attributes - cached_attributes
@@ -83,6 +85,7 @@ module ActiveModel
         #     User_AdminNOnCachedSerializer
         #
         def fragment_serializer(name, klass)
+          p [__callee__, name, klass]
           cached     = "#{to_valid_const_name(name)}CachedSerializer"
           non_cached = "#{to_valid_const_name(name)}NonCachedSerializer"
 

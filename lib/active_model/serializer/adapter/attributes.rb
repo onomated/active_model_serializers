@@ -18,6 +18,7 @@ module ActiveModel
         end
 
         def fragment_cache(cached_hash, non_cached_hash)
+          puts 'fragment cache adapter'
           Json::FragmentCache.new.fragment_cache(cached_hash, non_cached_hash)
         end
 
@@ -56,7 +57,9 @@ module ActiveModel
         end
 
         def resource_object_for(options)
+          puts 'resource object for'
           cache_check(serializer) do
+          puts 'resource object for cache miss'
             serializer.attributes(options[:fields])
           end
         end

@@ -29,7 +29,9 @@ module ActiveModel
         end
 
         def cache_check(serializer)
+          puts caller[0]
           CachedSerializer.new(serializer).cache_check(self) do
+            puts 'cache miss'
             yield
           end
         end

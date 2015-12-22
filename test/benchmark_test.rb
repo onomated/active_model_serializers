@@ -1,6 +1,7 @@
 # https://github.com/rails-api/active_model_serializers/pull/872
 # approx ref 792fb8a9053f8db3c562dae4f40907a582dd1720 to test against
 # require 'test_helper'
+require 'minitest/autorun'
 
 require 'rails'
 require 'active_model'
@@ -148,7 +149,7 @@ module ActionController
       tests PostController
 
       def test_render_with_cache_enable
-        times = Integer(ENV['TIMES'])
+        times = Integer(ENV['TIMES'] || 2)
         puts "Caching is #{Rails.application.config.action_controller.perform_caching}. Running #{times} times"
         ActionController::Base.cache_store.clear
         i = 0

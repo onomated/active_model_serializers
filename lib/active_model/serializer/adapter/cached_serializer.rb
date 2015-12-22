@@ -9,13 +9,17 @@ module ActiveModel
 
         def cache_check(adapter_instance)
           if cached?
+            puts 'cached'
             p [cache_key, adapter_instance, @klass._cache, @klass._cache_options]
             @klass._cache.fetch(cache_key, @klass._cache_options) do
+              puts 'fetched'
               yield
             end
           elsif fragment_cached?
+            puts 'fragment'
             FragmentCache.new(adapter_instance, @cached_serializer, adapter_instance.instance_options).fetch
           else
+            puts 'not cached'
             yield
           end
         end
