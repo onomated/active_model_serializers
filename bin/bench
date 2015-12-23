@@ -30,9 +30,9 @@ def refresh_temp_dir
   fill_temp_dir
 end
 
-def benchmark_tests
+def benchmark_tests(env = '', output_redirection: '')
   refresh_temp_dir if temp_dir_empty?
-  system("bundle exec ruby -Ilib:test #{Shellwords.shellescape(TMP_DIR)}/*_benchmark.rb")
+  system("#{env} bundle exec ruby -Ilib:test #{Shellwords.shellescape(TMP_DIR)}/*_benchmark.rb #{output_redirection}")
 end
 
 def current_branch
@@ -94,11 +94,11 @@ bin/run-command-on-git-revisions #{start_ref} #{end_ref} \
 end
 
 def run_benchmark
+  benchmark_tests
   response = Benchmark.realtime {
     benchmark_tests
   }
-  benchmark_tests
-  response
+  puts response
 end
 
 def run_benchmark_at_ref(ref)
@@ -107,11 +107,21 @@ def run_benchmark_at_ref(ref)
 end
 
 if $0 == __FILE__
-  start_ref = current_branch
-  end_ref = 'master'
-  benchmark_refs(start_ref, end_ref)
+  # ### Two refs
+  # start_ref = current_branch
+  # end_ref = 'master'
+  # benchmark_refs(start_ref, end_ref)
+
+  # ### All refs across revisions
   # TODO: Consider checking across more revisions, to automatically find problems.
   # start_ref = 'dff607d'
   # end_ref = current_branch
   # benchmark_revisions(start_ref, end_ref)
+
+  ### Current branch
+  benchmark_tests('TIMES=1 RUN_ONCE=0', output_redirection: '> /dev/null')
+  response = Benchmark.realtime {
+    benchmark_tests('TIMES=10 RUN_ONCE=0', output_redirection: '> /dev/null')
+  }
+  puts response
 end
