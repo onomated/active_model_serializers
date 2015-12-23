@@ -19,7 +19,7 @@ def empty_temp_dir
 end
 
 def fill_temp_dir
-  Dir[File.join(ROOT, 'test', '**', '*_benchmark.rb')].each do |file|
+  Dir[File.join(ROOT, 'test', 'benchmark', '*.rb')].each do |file|
     FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
   end
   at_exit { empty_temp_dir }
@@ -32,7 +32,7 @@ end
 
 def benchmark_tests
   refresh_temp_dir if temp_dir_empty?
-  system("bundle exec ruby -Ilib:test #{Shellwords.shellescape(TMP_DIR)}/*.rb")
+  system("bundle exec ruby -Ilib:test #{Shellwords.shellescape(TMP_DIR)}/*_benchmark.rb")
 end
 
 def current_branch
