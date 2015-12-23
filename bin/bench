@@ -1,0 +1,81 @@
+#!/usr/bin/env ruby
+require 'fileutils'
+require 'benchmark'
+require 'pathname'
+require 'shellwords'
+
+ROOT = Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__)
+TMP_DIR = File.join(ROOT, 'tmp/bench')
+
+def temp_dir_empty?
+  Dir[File.join(TMP_DIR, '*')].none?
+end
+
+def empty_temp_dir
+  FileUtils.mkdir_p(TMP_DIR)
+  Dir[File.join(TMP_DIR, '*')].each do |file|
+    FileUtils.rm(file)
+  end
+end
+
+def fill_temp_dir
+  Dir[File.join(ROOT, 'test', '**', '*_benchmark.rb')].each do |file|
+    FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
+  end
+  at_exit { empty_temp_dir }
+end
+
+def refresh_temp_dir
+  empty_temp_dir
+  fill_temp_dir
+end
+
+def benchmark_tests
+  refresh_temp_dir if temp_dir_empty?
+  system("bundle exec ruby -Ilib:test #{Shellwords.shellescape(TMP_DIR)}/*.rb")
+end
+
+def current_branch
+  @current_branch ||= `cat .git/HEAD | cut -d/ -f3,4,5`.chomp
+end
+
+def checkout_ref(ref)
+  puts `git checkout #{ref}`.chomp
+  abort "Checkout failed: #{ref}, #{$?.exitstatus}" unless $?.success?
+end
+
+def benchmark
+  refresh_temp_dir
+  ref  = current_branch
+
+  actual = run_benchmark_at_ref ref
+  master = run_benchmark_at_ref 'master'
+
+  checkout_ref(ref)
+
+  puts "\n\nResults ============================\n"
+  puts "------------------------------------~> (Branch) MASTER"
+  puts master
+  puts "------------------------------------\n\n"
+
+  puts "------------------------------------~> (Actual Branch) #{ref}"
+  puts actual
+  puts "------------------------------------"
+end
+
+def run_benchmark
+  response = Benchmark.realtime {
+    benchmark_tests
+  }
+  benchmark_tests
+  response
+end
+
+def run_benchmark_at_ref(ref)
+  checkout_ref(ref)
+  run_benchmark
+end
+
+if $0 == __FILE__
+  benchmark
+end
