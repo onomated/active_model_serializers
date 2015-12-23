@@ -44,23 +44,53 @@ def checkout_ref(ref)
   abort "Checkout failed: #{ref}, #{$?.exitstatus}" unless $?.success?
 end
 
-def benchmark
+def benchmark_refs(start_ref, end_ref)
   refresh_temp_dir
-  ref  = current_branch
 
-  actual = run_benchmark_at_ref ref
-  master = run_benchmark_at_ref 'master'
+  actual = run_benchmark_at_ref start_ref
+  reference = run_benchmark_at_ref end_ref
 
   checkout_ref(ref)
 
   puts "\n\nResults ============================\n"
-  puts "------------------------------------~> (Branch) MASTER"
-  puts master
+  puts "------------------------------------~> (Branch) #{end_ref}"
+  puts reference
   puts "------------------------------------\n\n"
 
-  puts "------------------------------------~> (Actual Branch) #{ref}"
+  puts "------------------------------------~> (Actual Branch) #{start_ref}"
   puts actual
   puts "------------------------------------"
+end
+
+# TODO: consider instead 'git bisect run'
+# # https://git-scm.com/docs/git-bisect
+#   git bisect run my_script arguments
+#
+#   Note that the script (my_script in the above example) should exit with code 0
+#   if the current source code is good/old, and exit with a code between 1 and 127 (inclusive),
+#   except 125, if the current source code is bad/new.
+#
+#   Any other exit code will abort the bisect process. It should be noted that a program that
+#   terminates via exit(-1) leaves $? = 255, (see the exit(3) manual page),
+#   as the value is chopped with & 0377.
+#
+#   The special exit code 125 should be used when the current source code cannot be tested.
+#   If the script exits with this code, the current revision will be skipped.
+#
+# TODO with git bisect run:
+#   - Handle exceptions on test run as 'skip'.
+#   - Assert a diff from the previous run  or given time as 'bad'.
+def benchmark_revisions(start_ref, end_ref)
+  refresh_temp_dir
+  whereami = current_branch
+  pid = fork do
+    exec(<<-CMD)
+bin/run-command-on-git-revisions #{start_ref} #{end_ref} \
+'rm -f Gemfile.lock; bundle check || bundle --local || bundle; bundle exec ruby -Ilib:test #{Shellwords.shellescape(TMP_DIR)}/*_benchmark.rb || echo $?'
+    CMD
+  end
+  Process.wait(pid)
+  checkout_ref(whereami)
 end
 
 def run_benchmark
@@ -77,5 +107,11 @@ def run_benchmark_at_ref(ref)
 end
 
 if $0 == __FILE__
-  benchmark
+  start_ref = current_branch
+  end_ref = 'master'
+  benchmark_refs(start_ref, end_ref)
+  # TODO: Consider checking across more revisions, to automatically find problems.
+  # start_ref = 'dff607d'
+  # end_ref = current_branch
+  # benchmark_revisions(start_ref, end_ref)
 end
