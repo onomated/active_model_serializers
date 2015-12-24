@@ -31,10 +31,10 @@ module ActionController
       def test_render_benchmark
         if run_only?
           cache_on!(true)
-          raise [@controller.config.perform_caching, ActionController::Base.cache_store].inspect
+          ActionController::Base.cache_store.clear
           timing = Benchmark.realtime do
             n_times.times do
-              _test_render_cache_enabled
+              get :render_with_caching_serializer
             end
           end
           at_exit { STDERR.print timing }
