@@ -55,3 +55,8 @@ require_relative 'fixtures'
 
 Rails.application.initialize!
 ActiveModel::Serializer.config.cache_store ||= ActiveSupport::Cache.lookup_store(ActionController::Base.cache_store || Rails.cache || :memory_store)
+
+ActiveSupport::Cache::Store.logger = Logger.new(STDERR)
+ActiveSupport::Notifications.subscribe(/cache/) do |_,_,__,details|
+  p details
+end
