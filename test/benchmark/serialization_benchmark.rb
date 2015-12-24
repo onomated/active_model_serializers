@@ -9,7 +9,7 @@ module ActionController
           author  = Author.new(id: 1, name: 'Joao Moura.')
           post    = Post.new(id: 1, title: 'New Post', blog: nil, body: 'Body', comments: [comment], author: author)
 
-          render json: post
+          render json: post, adapter: :json
         end
 
         def render_with_cache_disabled
@@ -17,7 +17,7 @@ module ActionController
           author  = Author.new(id: 1, name: 'Joao Moura.')
           post    = Post.new(id: 1, title: 'New Post', blog: nil, body: 'Body', comments: [comment], author: author)
 
-          render json: post, serializer: CachingPostSerializer
+          render json: post, serializer: CachingPostSerializer, adapter: :json
         end
       end
 
