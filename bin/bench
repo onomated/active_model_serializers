@@ -206,7 +206,7 @@ if $0 == __FILE__
   when 'two_refs'
     start_ref = ARGV[1] || current_branch
     end_ref = ARGV[2] || 'master'
-    run_benchmark_refs(start_ref, end_ref, 'RUN_ONCE=0', append: '> /dev/null')
+    run_benchmark_refs(start_ref, end_ref, append: '> /dev/null')
   when 'across_refs'
     # TODO: Consider checking across more revisions, to automatically find problems.
     second_choice_start = 'dff607d'
