@@ -51,12 +51,32 @@ ActionController::TestCase.class_eval do
   end
 end
 
-require_relative 'fixtures'
-
+# needs to be before any serializes are defined for sanity's sake
+# otherwise you have to manually set perform caching
 Rails.application.initialize!
-ActiveModel::Serializer.config.cache_store ||= ActiveSupport::Cache.lookup_store(ActionController::Base.cache_store || Rails.cache || :memory_store)
+# p ActiveModel::Serializer._cache.class
+# # ActiveModel::Serializer.config.cache_store ||= ActiveSupport::Cache.lookup_store(ActionController::Base.cache_store || Rails.cache || :memory_store)
+# p ActiveModel::Serializer.config.cache_store
+# p ActiveModel::Serializer._cache.class
+# p [ActiveModelSerializers.config.cache_store.class, ActiveModelSerializers.config.perform_caching, ActiveModel::Serializer._cache.class, ActiveModel::Serializer._cache.class]
+# ActiveModelSerializers.config.perform_caching = true
+# ActiveModelSerializers.config.perform_caching = true
+# ActiveModel::Serializer.config.cache_store ||= ActiveSupport::Cache.lookup_store(ActionController::Base.cache_store || Rails.cache || :memory_store)
+require_relative 'fixtures'
+# ActiveModel::Serializer._cache ||= ActiveSupport::Cache.lookup_store(ActionController::Base.cache_store || Rails.cache || :memory_store)
+# p [PostSerializer._cache, CachingPostSerializer._cache, ActiveModelSerializers.config.cache_store.class, ActiveModelSerializers.config.perform_caching, ActiveModel::Serializer._cache.class, ActiveModel::Serializer._cache.class]
+# p ActiveModel::Serializer._cache.class
+# p PostSerializer._cache.class
+# p CachingPostSerializer._cache.class
+
+#       serializer.class_attribute :_cache         # @api private : the cache object
+#     def self.cache(options = {})
+#           self._cache = ActiveModelSerializers.config.cache_store if ActiveModelSerializers.config.perform_caching
+#       serializer.class_attribute :_cache         # @api private : the cache object
+#     def self.cache(options = {})
+#           self._cache = ActiveModelSerializers.config.cache_store if ActiveModelSerializers.config.perform_caching
 
 ActiveSupport::Cache::Store.logger = Logger.new(STDERR)
-ActiveSupport::Notifications.subscribe(/cache/) do |_,_,__,details|
-  raise details.inspect
-end
+# ActiveSupport::Notifications.subscribe(/^cache_(.*)\.active_support$/) do |*args|
+#   STDERR.puts ActiveSupport::Notifications::Event.new(*args)
+# end

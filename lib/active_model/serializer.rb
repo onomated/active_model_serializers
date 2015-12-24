@@ -116,7 +116,10 @@ module ActiveModel
     # @todo require less code comments. See
     # https://github.com/rails-api/active_model_serializers/pull/1249#issuecomment-146567837
     def self.cache(options = {})
+      # p [self.class, options]
+      # p [ActiveModelSerializers.config.cache_store, ActiveModelSerializers.config.perform_caching, self._cache.class]
       self._cache = ActiveModelSerializers.config.cache_store if ActiveModelSerializers.config.perform_caching
+      # p [ActiveModelSerializers.config.cache_store, ActiveModelSerializers.config.perform_caching, self._cache.class]
       self._cache_key = options.delete(:key)
       self._cache_only = options.delete(:only)
       self._cache_except = options.delete(:except)

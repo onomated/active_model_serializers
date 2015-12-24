@@ -10,7 +10,9 @@ module ActiveModel
 
     initializer 'active_model_serializers.caching' do
       ActiveSupport.on_load(:action_controller) do
-        ActiveModelSerializers.config.cache_store     = ActionController::Base.cache_store
+        # p [ActiveModelSerializers.config.cache_store, ActionController::Base.cache_store]
+        ActiveModelSerializers.config.perform_caching = Rails.configuration.action_controller.perform_caching
+        # p [ActiveModelSerializers.config.cache_store, ActionController::Base.cache_store]
         ActiveModelSerializers.config.perform_caching = Rails.configuration.action_controller.perform_caching
       end
     end

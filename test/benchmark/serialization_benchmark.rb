@@ -1,5 +1,4 @@
 require_relative 'benchmark_helper'
-
 module ActionController
   module Serialization
     class SerializerTest < ActionController::TestCase
@@ -23,10 +22,10 @@ module ActionController
 
       tests PostController
 
-      # def setup
-      #   super
-      #   cache_on! ENV['DISABLE_CACHE'] != '1'
-      # end
+      def setup
+        super
+        cache_on! ENV['DISABLE_CACHE'] != '1'
+      end
 
       def test_render_benchmark
         if run_only?
@@ -123,7 +122,9 @@ module ActionController
       private
 
       def cache_on!(bool)
-        @controller.config.perform_caching = bool
+        STDERR.puts @controller.cache_store.class
+        STDERR.puts @controller.view_cache_dependencies
+        @controller.perform_caching = bool
       end
 
     end
