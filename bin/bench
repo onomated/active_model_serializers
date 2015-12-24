@@ -133,8 +133,9 @@ def fill_temp_dir
   end
   current_file = File.join(ROOT, __FILE__)
   FileUtils.cp(current_file, File.join(TMP_DIR, File.basename(current_file)))
-  # `bundle exec gem unpack benchmark-ips --target=#{TMP_DIR}`
-  at_exit { empty_temp_dir }
+  directory_name = `bundle exec gem unpack benchmark-ips --target=#{Shellwords.shellescape(TMP_DIR)}`[/benchmark-ips.+\d/]
+  at_exit { FileUtils.rm_rf(File.join(TMP_DIR, directory_name)); empty_temp_dir }
+  require File.join(TMP_DIR, directory_name, 'lib', 'benchmark', 'ips')
 end
 
 def refresh_temp_dir
@@ -204,10 +205,11 @@ if $0 == __FILE__
   case test_type
   when 'current_branch'
     run_benchmark('TIMES=1 RUN_ONCE=0', append: '&> /dev/null') # warmup
-    result1 = parse_measurement(run_benchmark('RUN_ONCE=0 DISABLE_CACHE=0', append: '> /dev/null'))
-    print "\t"
-    result2 = parse_measurement(run_benchmark('RUN_ONCE=0 DISABLE_CACHE=1', append: '> /dev/null'))
-    report "\n\t#{current_branch_brief}\n\tcaching: #{result1}\n\tno cache: #{result2}"
+    result1 = parse_measurement(run_benchmark)
+    p result1
+    # print "\t"
+    # result2 = parse_measurement(run_benchmark('RUN_ONCE=0 DISABLE_CACHE=1', append: '> /dev/null'))
+    # report "\n\t#{current_branch_brief}\n\tcaching: #{result1}\n\tno cache: #{result2}"
   when 'two_refs'
     start_ref = ARGV[1] || current_branch
     end_ref = ARGV[2] || 'master'

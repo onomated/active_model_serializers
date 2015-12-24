@@ -28,21 +28,25 @@ module ActionController
       end
 
       def test_render_benchmark
-        if run_only?
-          cache_on!(true)
-          ActionController::Base.cache_store.clear
-          timing = Benchmark.realtime do
-            n_times.times do
-              get :render_with_caching_serializer
-            end
-          end
-          at_exit { STDERR.print timing }
-          true
-        end and return
+        # if run_only?
+        #   cache_on!(true)
+        #   ActionController::Base.cache_store.clear
+        #   timing = Benchmark.realtime do
+        #     n_times.times do
+        #       get :render_with_caching_serializer
+        #     end
+        #   end
+        #   at_exit { STDERR.print timing }
+        #   true
+        # end and return
 
         n = n_times
-        Benchmark.bmbm do |x|
-          x.report('cache: on; caching serializer') do
+        reports = Benchmark.ips do |x|
+          # the warmup phase (default 2) and calculation phase (default 5)
+          x.config(time: 5, warmup: 2)
+
+          x.report('cache: on; caching serializer') do |times|
+            times ||= n
             ActionController::Base.cache_store.clear
             cache_on!(true)
             i = 0
@@ -52,6 +56,7 @@ module ActionController
             end
           end
           x.report('cache: off; caching serializer') do
+            times ||= n
             ActionController::Base.cache_store.clear
             cache_on!(false)
             i = 0
@@ -61,6 +66,7 @@ module ActionController
             end
           end
           x.report('cache: on; non-caching serializer') do
+            times ||= n
             ActionController::Base.cache_store.clear
             cache_on!(true)
             i = 0
@@ -70,6 +76,7 @@ module ActionController
             end
           end
           x.report('cache: on; non-caching serializer') do
+            times ||= n
             ActionController::Base.cache_store.clear
             cache_on!(false)
             i = 0
@@ -78,6 +85,8 @@ module ActionController
               i += 1
             end
           end
+
+          x.compare!
         end
         assert_expected
       end
