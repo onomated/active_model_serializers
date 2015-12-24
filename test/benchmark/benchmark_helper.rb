@@ -58,5 +58,5 @@ ActiveModel::Serializer.config.cache_store ||= ActiveSupport::Cache.lookup_store
 
 ActiveSupport::Cache::Store.logger = Logger.new(STDERR)
 ActiveSupport::Notifications.subscribe(/cache/) do |_,_,__,details|
-  p details
+  raise details.inspect
 end
