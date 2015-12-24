@@ -6,6 +6,7 @@ require 'shellwords'
 
 ROOT = ENV.fetch('PROJECT_ROOT') { Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__) }
 TMP_DIR = ENV.fetch('PROJECT_TMP_DIR') { File.join(ROOT, 'tmp/bench') }
+TMP_DIR_BASE = TMP_DIR.to_s.dup.sub(ROOT.to_s + '/', '')
 
 def run_benchmark(env = '', append: '')
   cmd = build_benchmark_command(env, append: append)
@@ -78,9 +79,12 @@ def run_benchmark_revisions(start_ref, end_ref, env = '', append: '')
 
   returning_to_current_branch do
     pid = spawn(
-      { 'PROJECT_ROOT' => ROOT.to_s,
+      {
+        'PROJECT_ROOT' => ROOT.to_s,
         'PROJECT_TMP_DIR' => TMP_DIR.to_s,
-        'ASSERT_NOTHING' => '1'
+        'ASSERT_NOTHING' => '1',
+        'RUN_ONCE' => '1',
+        'DISABLE_CACHE' => '0'
       },
       cmd,
       out: out
@@ -94,7 +98,7 @@ def run_benchmark_revisions(start_ref, end_ref, env = '', append: '')
 end
 
 def build_benchmark_command(env = '', append: '', shellescape: false, cmd_tmpl: 'bundle exec ruby -Ilib:test %s/*_benchmark.rb')
-  tmp_dir = TMP_DIR.to_s.dup.sub(ROOT.to_s + '/', '')
+  tmp_dir = TMP_DIR_BASE
   if shellescape
     tmp_dir = Shellwords.shellescape(tmp_dir)
     env = Shellwords.shellescape(env)
@@ -129,6 +133,7 @@ def fill_temp_dir
   end
   current_file = File.join(ROOT, __FILE__)
   FileUtils.cp(current_file, File.join(TMP_DIR, File.basename(current_file)))
+  # `bundle exec gem unpack benchmark-ips --target=#{TMP_DIR}`
   at_exit { empty_temp_dir }
 end
 

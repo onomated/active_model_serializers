@@ -40,15 +40,9 @@ module ActionController
           true
         end and return
 
-        _test_render_cache_enabled
-        ActionController::Base.cache_store.clear
-        get :render_with_non_caching_serializer
-        assert_expected
-
-
         n = n_times
         Benchmark.bmbm do |x|
-          x.report('cache') do
+          x.report('cache: on; caching serializer') do
             ActionController::Base.cache_store.clear
             cache_on!(true)
             i = 0
@@ -57,7 +51,25 @@ module ActionController
               i += 1
             end
           end
-          x.report('no cache') do
+          x.report('cache: off; caching serializer') do
+            ActionController::Base.cache_store.clear
+            cache_on!(false)
+            i = 0
+            while i < n
+              get :render_with_caching_serializer
+              i += 1
+            end
+          end
+          x.report('cache: on; non-caching serializer') do
+            ActionController::Base.cache_store.clear
+            cache_on!(true)
+            i = 0
+            while i < n
+              get :render_with_non_caching_serializer
+              i += 1
+            end
+          end
+          x.report('cache: on; non-caching serializer') do
             ActionController::Base.cache_store.clear
             cache_on!(false)
             i = 0
