@@ -9,7 +9,7 @@
 #     https://github.com/garybernhardt/dotfiles/blob/9ffa83887/bin/run-command-on-git-revisions
 #
 # Example usage:
-#     $ run-command-on-git-revisions origin/master master 'python runtests.py'
+#     $ run-command-on-git-revisions -v origin/master master 'python runtests.py'
 
 set -e
 

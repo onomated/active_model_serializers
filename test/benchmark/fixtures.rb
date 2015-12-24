@@ -1,3 +1,24 @@
+require 'active_support/core_ext/string'
+# Monkeypatch serializer for some versions...
+if ActiveModel::Serializer.respond_to?(:digest_caller_file)
+  ActiveModel::Serializer.class_eval do
+    class << self
+      alias_method :original_digest_caller_file, :digest_caller_file
+      def digest_caller_file(caller_line)
+        self.original_digest_caller_file(caller_line)
+      rescue TypeError, Errno::ENOENT, NoMethoError
+        super_omg_digest = "#{self.object_id.to_s}_#{rand(Time.now.to_i)}"
+        warn <<-EOF.strip_heredoc
+           Cannot digest non-existent file: '#{caller_line}'.
+           This was caught by a monkey patch in the test suite.
+           Using #{super_omg_digest} (the object_id).
+        EOF
+        super_omg_digest
+      end
+    end
+  end
+end
+
 class AuthorSerializer < ActiveModel::Serializer
   attributes :id, :name
 
@@ -48,46 +69,56 @@ class CachingPostSerializer < PostSerializer
   has_many :comments, serializer: CachingCommentSerializer
 end
 
-class Model
-  def initialize(hash = {})
-    @attributes = hash
+# ActiveModelSerializers::Model is a convenient
+# serializable class to inherit from when making
+# serializable non-activerecord objects.
+class BenchmarkModel
+  include ActiveModel::Model
+  include ActiveModel::Serializers::JSON
+
+  attr_reader :attributes
+
+  def initialize(attributes = {})
+    @attributes = attributes
+    super
   end
 
-  def cache_key
-    "#{self.class.name.downcase}/#{id}-#{updated_at}"
-  end
-
-  def updated_at
-    @attributes[:updated_at] ||= Time.current.to_i
-  end
-
-  def read_attribute_for_serialization(name)
-    if name == :id || name == 'id'
-      id
-    else
-      @attributes[name]
-    end
-  end
-
+  # Defaults to the downcased model name.
   def id
-    @attributes[:id] || @attributes['id'] || object_id
+    attributes.fetch(:id) { self.class.name.downcase }
   end
 
-  def to_param
-    id
+  # Defaults to the downcased model name and updated_at
+  def cache_key
+    attributes.fetch(:cache_key) { "#{self.class.name.downcase}/#{id}-#{updated_at.strftime("%Y%m%d%H%M%S%9N")}" }
   end
 
-  def method_missing(meth, *args)
-    if meth.to_s =~ /^(.*)=$/
-      @attributes[Regexp.last_match(1).to_sym] = args[0]
-    elsif @attributes.key?(meth)
-      @attributes[meth]
+  # Defaults to the time the serializer file was modified.
+  def updated_at
+    attributes.fetch(:updated_at) { File.mtime(__FILE__) }
+  end
+
+  def read_attribute_for_serialization(key)
+    if key == :id || key == 'id'
+      attributes.fetch(key) { id }
     else
-      super
+      attributes[key]
     end
   end
 end
-class Comment < Model; end
-class Author < Model; end
-class Post < Model; end
-class Blog < Model; end
+
+class Comment < BenchmarkModel
+  attr_accessor :id, :body
+end
+
+class Author < BenchmarkModel
+  attr_accessor :id, :name, :posts, :bio
+end
+
+class Post < BenchmarkModel
+  attr_accessor :id, :title, :body, :comments, :blog, :author
+end
+
+class Blog < BenchmarkModel
+  attr_accessor :id, :name
+end
