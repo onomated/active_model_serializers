@@ -4,8 +4,8 @@ require 'benchmark'
 require 'pathname'
 require 'shellwords'
 
-ROOT = ENV.fetch('ROOT') { Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__) }
-TMP_DIR = ENV.fetch('TMP_DIR') { File.join(ROOT, 'tmp/bench') }
+ROOT = ENV.fetch('PROJECT_ROOT') { Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__) }
+TMP_DIR = ENV.fetch('PROJECT_TMP_DIR') { File.join(ROOT, 'tmp/bench') }
 
 def run_benchmark(env = '', append: '')
   cmd = build_benchmark_command(env, append: append)
@@ -69,20 +69,38 @@ end
 #   - Assert a diff from the previous run  or given time as 'bad'.
 def run_benchmark_revisions(start_ref, end_ref, env = '', append: '')
   refresh_temp_dir
-  cmd = build_benchmark_command(env, append: append)
-  cmd = "bin/run-command-on-git-revisions -v #{start_ref} #{end_ref} '#{cmd}'"
+
+   _bundle_command = Gem.bin_path('bundler', 'bundle')
+  out = STDERR
+  cmd_tmpl = "#{Gem.ruby} #{_bundle_command} exec %s/bench current_branch"
+  cmd = build_benchmark_command(env, append: append, cmd_tmpl: cmd_tmpl)
+  cmd = "bin/run-command-on-git-revisions #{start_ref} #{end_ref} '#{cmd}'"
+
   returning_to_current_branch do
-    sh(cmd)
+    pid = spawn(
+      { 'PROJECT_ROOT' => ROOT.to_s,
+        'PROJECT_TMP_DIR' => TMP_DIR.to_s,
+        'ASSERT_NOTHING' => '1'
+      },
+      cmd,
+      out: out
+    )
+    Process.detach(pid)
+    trap(:INT) do
+      Process.kill(:INT, pid)
+    end
+    Process.wait(pid)
   end
 end
 
-def build_benchmark_command(env = '', append: '', shellescape: false)
+def build_benchmark_command(env = '', append: '', shellescape: false, cmd_tmpl: 'bundle exec ruby -Ilib:test %s/*_benchmark.rb')
   tmp_dir = TMP_DIR.to_s.dup.sub(ROOT.to_s + '/', '')
   if shellescape
     tmp_dir = Shellwords.shellescape(tmp_dir)
     env = Shellwords.shellescape(env)
   end
-  "#{env} bundle exec ruby -Ilib:test #{tmp_dir}/*_benchmark.rb #{append}"
+  cmd = format(cmd_tmpl, tmp_dir)
+  "#{env} #{cmd} #{append}"
 end
 
 def sh(cmd)
@@ -121,9 +139,10 @@ end
 
 def returning_to_current_branch
   whereami = current_branch
-  trap("INT") { checkout_ref(whereami) } # in case of interrupt
-  at_exit { $! && $!.is_a?(SystemExit) && checkout_ref(whereami) }
   yield
+rescue SystemExit, Interrupt
+  checkout_ref
+  raise
 ensure
   checkout_ref(whereami)
 end
@@ -137,6 +156,9 @@ def checkout_ref(ref)
   report `git checkout #{ref}`.chomp
   abort "Checkout failed: #{ref}, #{$?.exitstatus}" unless $?.success?
 end
+
+# trap("INT") { checkout_ref(current_branch) } # in case of interrupt
+# at_exit { $! && $!.is_a?(SystemExit) && checkout_ref(whereami) }
 
 def report(msg = '')
   STDERR.puts msg
@@ -167,22 +189,29 @@ def parse_measurement(measurement)
   }
 end
 
+def current_branch_brief
+  `git log --oneline -1 #{current_branch}`.chomp
+end
+
 if $0 == __FILE__
   test_type = ARGV[0] || 'current_branch'
 
   case test_type
   when 'current_branch'
     run_benchmark('TIMES=1 RUN_ONCE=0', append: '&> /dev/null') # warmup
-    report parse_measurement(run_benchmark('TIMES=10 RUN_ONCE=0', append: '> /dev/null'))
+    result1 = parse_measurement(run_benchmark('RUN_ONCE=0 DISABLE_CACHE=0', append: '> /dev/null'))
+    result2 = parse_measurement(run_benchmark('RUN_ONCE=0 DISABLE_CACHE=1', append: '> /dev/null'))
+    report "\n\t#{current_branch_brief}\n\tcaching: #{result1}\n\tno cache: #{result2}"
   when 'two_refs'
     start_ref = ARGV[1] || current_branch
     end_ref = ARGV[2] || 'master'
     run_benchmark_refs(start_ref, end_ref, 'TIMES=500 RUN_ONCE=0', append: '> /dev/null')
   when 'across_refs'
     # TODO: Consider checking across more revisions, to automatically find problems.
-    start_ref = ARGV[1] || 'dff607d'
-    end_ref = ARGV[2] || current_branch
-    run_benchmark_revisions(start_ref, end_ref, 'TIMES=500 RUN_ONCE=0 DISABLE_CACHE=0 ASSERT_NOTHING=1', append: '> /dev/null')
+    second_choice_start = 'dff607d'
+    start_ref = ARGV[1] || '792fb8a9053f8db3c562dae4f40907a582dd1720'
+    end_ref = ARGV[2] || 'master' # current_branch
+    run_benchmark_revisions(start_ref, end_ref, 'TIMES=1000 ASSERT_NOTHING=1', append: '> /dev/null')
   else
     report "Unknown test type #{test_type}"
   end

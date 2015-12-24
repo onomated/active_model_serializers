@@ -35,7 +35,7 @@ module ActionController
               _test_render_cache_enabled
             end
           end
-          STDERR.puts timing
+          at_exit { STDERR.print timing }
           true
         end and return
 
