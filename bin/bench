@@ -199,8 +199,8 @@ if $0 == __FILE__
   case test_type
   when 'current_branch'
     run_benchmark('TIMES=1 RUN_ONCE=0') # , append: '&> /dev/null') # warmup
-    result1 = parse_measurement(run_benchmark('RUN_ONCE=0 DISABLE_CACHE=0')) # , append: '> /dev/null'))
-    result2 = parse_measurement(run_benchmark('RUN_ONCE=0 DISABLE_CACHE=1')) # , append: '> /dev/null'))
+    result1 = parse_measurement(run_benchmark('RUN_ONCE=0 DISABLE_CACHE=0', append: '> /dev/null'))
+    result2 = parse_measurement(run_benchmark('RUN_ONCE=0 DISABLE_CACHE=1', append: '> /dev/null'))
     report "\n\t#{current_branch_brief}\n\tcaching: #{result1}\n\tno cache: #{result2}"
   when 'two_refs'
     start_ref = ARGV[1] || current_branch
