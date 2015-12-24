@@ -32,7 +32,7 @@ class BenchmarkApp < Rails::Application
 end
 
 require 'active_model_serializers'
-ActiveModelSerializers.logger = Logger.new(IO::NULL)
+# ActiveModelSerializers.logger = Logger.new(IO::NULL)
 
 
 module TestHelper
