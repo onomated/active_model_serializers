@@ -23,13 +23,14 @@ module ActionController
 
       tests PostController
 
-      def setup
-        super
-        cache_on! ENV['DISABLE_CACHE'] != '1'
-      end
+      # def setup
+      #   super
+      #   cache_on! ENV['DISABLE_CACHE'] != '1'
+      # end
 
       def test_render_benchmark
         if run_only?
+          cache_on!(true)
           timing = Benchmark.realtime do
             n_times.times do
               _test_render_cache_enabled
