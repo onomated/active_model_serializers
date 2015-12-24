@@ -4,62 +4,49 @@ require 'benchmark'
 require 'pathname'
 require 'shellwords'
 
-ROOT = Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__)
-TMP_DIR = File.join(ROOT, 'tmp/bench')
+ROOT = ENV.fetch('ROOT') { Pathname File.expand_path(['..', '..'].join(File::Separator), __FILE__) }
+TMP_DIR = ENV.fetch('TMP_DIR') { File.join(ROOT, 'tmp/bench') }
 
-def temp_dir_empty?
-  Dir[File.join(TMP_DIR, '*')].none?
-end
-
-def empty_temp_dir
-  FileUtils.mkdir_p(TMP_DIR)
-  Dir[File.join(TMP_DIR, '*')].each do |file|
-    FileUtils.rm(file)
+def run_benchmark(env = '', append: '')
+  cmd = build_benchmark_command(env, append: append)
+  debug { cmd }
+  Benchmark.measure do
+    sh cmd
   end
 end
 
-def fill_temp_dir
-  Dir[File.join(ROOT, 'test', 'benchmark', '*.rb')].each do |file|
-    FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
+def run_benchmark_at_ref(ref, env = '', append: '')
+  returning_to_current_branch do
+    checkout_ref(ref)
+    run_benchmark(env, append: append)
   end
-  at_exit { empty_temp_dir }
 end
 
-def refresh_temp_dir
-  empty_temp_dir
-  fill_temp_dir
-end
-
-def benchmark_tests(env = '', output_redirection: '')
-  refresh_temp_dir if temp_dir_empty?
-  system("#{env} bundle exec ruby -Ilib:test #{Shellwords.shellescape(TMP_DIR)}/*_benchmark.rb #{output_redirection}")
-end
-
-def current_branch
-  @current_branch ||= `cat .git/HEAD | cut -d/ -f3,4,5`.chomp
-end
-
-def checkout_ref(ref)
-  puts `git checkout #{ref}`.chomp
-  abort "Checkout failed: #{ref}, #{$?.exitstatus}" unless $?.success?
-end
-
-def benchmark_refs(start_ref, end_ref)
+def run_benchmark_refs(start_ref, end_ref, env = '', append: '')
   refresh_temp_dir
+  actual = ''
+  reference = ''
 
-  actual = run_benchmark_at_ref start_ref
-  reference = run_benchmark_at_ref end_ref
+  returning_to_current_branch do
+    actual = run_benchmark_at_ref(start_ref, env, append: append)
+    reference = run_benchmark_at_ref(end_ref, env, append: append)
+  end
 
-  checkout_ref(ref)
 
-  puts "\n\nResults ============================\n"
-  puts "------------------------------------~> (Branch) #{end_ref}"
-  puts reference
-  puts "------------------------------------\n\n"
+  report <<-REPORT
 
-  puts "------------------------------------~> (Actual Branch) #{start_ref}"
-  puts actual
-  puts "------------------------------------"
+
+Results ============================
+------------------------------------~> (Branch) #{end_ref}
+  #{reference.to_s}
+------------------------------------
+
+
+
+------------------------------------~> (Actual Branch) #{start_ref}
+  #{actual.to_s}
+------------------------------------
+  REPORT
 end
 
 # TODO: consider instead 'git bisect run'
@@ -80,48 +67,123 @@ end
 # TODO with git bisect run:
 #   - Handle exceptions on test run as 'skip'.
 #   - Assert a diff from the previous run  or given time as 'bad'.
-def benchmark_revisions(start_ref, end_ref)
+def run_benchmark_revisions(start_ref, end_ref, env = '', append: '')
   refresh_temp_dir
-  whereami = current_branch
+  cmd = build_benchmark_command(env, append: append)
+  cmd = "bin/run-command-on-git-revisions -v #{start_ref} #{end_ref} '#{cmd}'"
+  returning_to_current_branch do
+    sh(cmd)
+  end
+end
+
+def build_benchmark_command(env = '', append: '', shellescape: false)
+  tmp_dir = TMP_DIR.to_s.dup.sub(ROOT.to_s + '/', '')
+  if shellescape
+    tmp_dir = Shellwords.shellescape(tmp_dir)
+    env = Shellwords.shellescape(env)
+  end
+  "#{env} bundle exec ruby -Ilib:test #{tmp_dir}/*_benchmark.rb #{append}"
+end
+
+def sh(cmd)
+  refresh_temp_dir if temp_dir_empty?
+
   pid = fork do
-    exec(<<-CMD)
-bin/run-command-on-git-revisions #{start_ref} #{end_ref} \
-'rm -f Gemfile.lock; bundle check || bundle --local || bundle; bundle exec ruby -Ilib:test #{Shellwords.shellescape(TMP_DIR)}/*_benchmark.rb || echo $?'
-    CMD
+    exec(cmd)
   end
   Process.wait(pid)
+end
+
+def temp_dir_empty?
+  Dir[File.join(TMP_DIR, '*')].none?
+end
+
+def empty_temp_dir
+  FileUtils.mkdir_p(TMP_DIR)
+  Dir[File.join(TMP_DIR, '*')].each do |file|
+    FileUtils.rm(file)
+  end
+end
+
+def fill_temp_dir
+  Dir[File.join(ROOT, 'test', 'benchmark', '*.rb')].each do |file|
+    FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
+  end
+  current_file = File.join(ROOT, __FILE__)
+  FileUtils.cp(current_file, File.join(TMP_DIR, File.basename(current_file)))
+  at_exit { empty_temp_dir }
+end
+
+def refresh_temp_dir
+  empty_temp_dir
+  fill_temp_dir
+end
+
+def returning_to_current_branch
+  whereami = current_branch
+  trap("INT") { checkout_ref(whereami) } # in case of interrupt
+  at_exit { $! && $!.is_a?(SystemExit) && checkout_ref(whereami) }
+  yield
+ensure
   checkout_ref(whereami)
 end
 
-def run_benchmark
-  benchmark_tests
-  response = Benchmark.realtime {
-    benchmark_tests
-  }
-  puts response
+def current_branch
+  @current_branch ||= `cat .git/HEAD | cut -d/ -f3,4,5`.chomp
 end
 
-def run_benchmark_at_ref(ref)
-  checkout_ref(ref)
-  run_benchmark
+def checkout_ref(ref)
+  return if current_branch == ref
+  report `git checkout #{ref}`.chomp
+  abort "Checkout failed: #{ref}, #{$?.exitstatus}" unless $?.success?
+end
+
+def report(msg = '')
+  STDERR.puts msg
+end
+
+def debug
+  return unless $DEBUG
+  STDERR.puts "[debug] #{yield}"
+end
+
+def parse_measurement(measurement)
+  if measurement.respond_to?(:utime)
+    user = measurement.utime
+    system = measurement.stime
+    total = measurement.total
+    real = measurement.real
+  else
+    user, system, total, real = measurement.strip.
+      gsub(/[^0-9\. ]/, '').
+      split(/\s+/).
+      map { |time| Float(time) }
+  end
+  {
+    :user => user,
+    :system => system,
+    :total => total,
+    :real => real,
+  }
 end
 
 if $0 == __FILE__
-  # ### Two refs
-  # start_ref = current_branch
-  # end_ref = 'master'
-  # benchmark_refs(start_ref, end_ref)
+  test_type = ARGV[0] || 'current_branch'
 
-  # ### All refs across revisions
-  # TODO: Consider checking across more revisions, to automatically find problems.
-  # start_ref = 'dff607d'
-  # end_ref = current_branch
-  # benchmark_revisions(start_ref, end_ref)
-
-  ### Current branch
-  benchmark_tests('TIMES=1 RUN_ONCE=0', output_redirection: '> /dev/null')
-  response = Benchmark.realtime {
-    benchmark_tests('TIMES=10 RUN_ONCE=0', output_redirection: '> /dev/null')
-  }
-  puts response
+  case test_type
+  when 'current_branch'
+    run_benchmark('TIMES=1 RUN_ONCE=0', append: '&> /dev/null') # warmup
+    report parse_measurement(run_benchmark('TIMES=10 RUN_ONCE=0', append: '> /dev/null'))
+  when 'two_refs'
+    start_ref = ARGV[1] || current_branch
+    end_ref = ARGV[2] || 'master'
+    run_benchmark_refs(start_ref, end_ref, 'TIMES=500 RUN_ONCE=0', append: '> /dev/null')
+  when 'across_refs'
+    # TODO: Consider checking across more revisions, to automatically find problems.
+    start_ref = ARGV[1] || 'dff607d'
+    end_ref = ARGV[2] || current_branch
+    run_benchmark_revisions(start_ref, end_ref, 'TIMES=500 RUN_ONCE=0 DISABLE_CACHE=0 ASSERT_NOTHING=1', append: '> /dev/null')
+  else
+    report "Unknown test type #{test_type}"
+  end
 end

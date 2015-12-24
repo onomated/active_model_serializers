@@ -6,7 +6,7 @@ if ActiveModel::Serializer.respond_to?(:digest_caller_file)
       alias_method :original_digest_caller_file, :digest_caller_file
       def digest_caller_file(caller_line)
         self.original_digest_caller_file(caller_line)
-      rescue TypeError, Errno::ENOENT, NoMethoError
+      rescue TypeError, Errno::ENOENT, NoMethodError
         super_omg_digest = "#{self.object_id.to_s}_#{rand(Time.now.to_i)}"
         warn <<-EOF.strip_heredoc
            Cannot digest non-existent file: '#{caller_line}'.
@@ -14,6 +14,9 @@ if ActiveModel::Serializer.respond_to?(:digest_caller_file)
            Using #{super_omg_digest} (the object_id).
         EOF
         super_omg_digest
+      end
+      def warn(msg)
+        STDOUT.puts(msg)
       end
     end
   end
@@ -23,7 +26,6 @@ class AuthorSerializer < ActiveModel::Serializer
   attributes :id, :name
 
   has_many :posts, embed: :ids
-  has_one :bio
 end
 
 class BlogSerializer < ActiveModel::Serializer
@@ -33,9 +35,8 @@ end
 class CommentSerializer < ActiveModel::Serializer
   attributes :id, :body
 
-  def custom_options
-    options
-  end
+  belongs_to :post
+  belongs_to :author
 end
 
 class PostSerializer < ActiveModel::Serializer
@@ -48,22 +49,18 @@ class PostSerializer < ActiveModel::Serializer
   def blog
     Blog.new(id: 999, name: 'Custom blog')
   end
-
-  def custom_options
-    options
-  end
 end
 
 class CachingAuthorSerializer < AuthorSerializer
-  cache key: 'writer'
+  cache key: 'writer', skip_digest: true
 end
 
 class CachingCommentSerializer < CommentSerializer
-  cache expires_in: 1.day
+  cache expires_in: 1.day, skip_digest: true
 end
 
 class CachingPostSerializer < PostSerializer
-  cache key: 'post', expires_in: 0.1
+  cache key: 'post', expires_in: 0.1, skip_digest: true
   belongs_to :blog, serializer: BlogSerializer
   belongs_to :author, serializer: CachingAuthorSerializer
   has_many :comments, serializer: CachingCommentSerializer
@@ -109,14 +106,22 @@ end
 
 class Comment < BenchmarkModel
   attr_accessor :id, :body
+
+  def cache_key
+    "#{self.class.name.downcase}/#{self.id}"
+  end
 end
 
 class Author < BenchmarkModel
-  attr_accessor :id, :name, :posts, :bio
+  attr_accessor :id, :name, :posts
 end
 
 class Post < BenchmarkModel
   attr_accessor :id, :title, :body, :comments, :blog, :author
+
+  def cache_key
+    "benchmarking::post/1-20151215212620000000000"
+  end
 end
 
 class Blog < BenchmarkModel

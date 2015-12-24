@@ -1,26 +1,39 @@
+# https://github.com/rails-api/active_model_serializers/pull/872
+# approx ref 792fb8a9053f8db3c562dae4f40907a582dd1720 to test against
+# require 'test_helper'
 require 'bundler/setup'
 
 require 'rails'
-abort "Rails application already defined: #{Rails.application.class}" if Rails.application
+require 'active_model'
+require 'active_support'
+require 'active_support/json'
 require 'action_controller'
 require 'action_controller/test_case'
 require 'action_controller/railtie'
-require 'active_support/json'
+abort "Rails application already defined: #{Rails.application.class}" if Rails.application
 require 'minitest/autorun'
 # Ensure backward compatibility with Minitest 4
 Minitest::Test = MiniTest::Unit::TestCase unless defined?(Minitest::Test)
 
+# ref: https://gist.github.com/bf4/8744473
 class BenchmarkApp < Rails::Application
-  if Rails.version.to_s.start_with? '4'
-    config.action_controller.perform_caching = true
-    config.active_support.test_order         = :random
-    ActionController::Base.cache_store       = :memory_store
-    config.eager_load = false
-    config.secret_key_base = 'abc123'
-  end
+  config.action_controller.perform_caching = true
+  ActionController::Base.cache_store       = :memory_store
+
+  # Set up production configuration
+  config.eager_load = true
+  config.cache_classes = true
+
+
+  config.active_support.test_order         = :random
+  config.secret_token = '1234'
+  config.secret_key_base = 'abc123'
+  config.logger = Logger.new(IO::NULL)
 end
 
 require 'active_model_serializers'
+ActiveModelSerializers.logger = Logger.new(IO::NULL)
+
 
 module TestHelper
   Routes = ActionDispatch::Routing::RouteSet.new
@@ -39,4 +52,6 @@ ActionController::TestCase.class_eval do
 end
 
 require_relative 'fixtures'
-BenchmarkApp.initialize!
+
+Rails.application.initialize!
+ActiveModel::Serializer.config.cache_store ||= ActiveSupport::Cache.lookup_store(ActionController::Base.cache_store || Rails.cache || :memory_store)
