@@ -1,4 +1,5 @@
 require_relative 'benchmark_helper'
+require 'benchmark/ips'
 module ActionController
   module Serialization
     class SerializerTest < ActionController::TestCase
