@@ -1,3 +1,31 @@
+require 'active_support/core_ext/string'
+# Monkeypatch serializer for some versions..., e.g.
+# Checking out: 2187313 update docs with integration table, and remove the grape placeholder for now
+#
+#  Cannot digest non-existent file: 'tmp/bench/fixtures.rb:1:in `<top (required)>''.
+#  Please set `::_cache_digest` of the serializer
+#  if you'd like to cache it.
+if ActiveModel::Serializer.respond_to?(:digest_caller_file)
+  ActiveModel::Serializer.class_eval do
+    class << self
+      alias_method :original_digest_caller_file, :digest_caller_file
+      def digest_caller_file(caller_line)
+        self.original_digest_caller_file(caller_line)
+      rescue TypeError, Errno::ENOENT, NoMethodError
+        super_omg_digest = "#{self.object_id.to_s}_#{rand(Time.now.to_i)}"
+        warn <<-EOF.strip_heredoc
+           Cannot digest non-existent file: '#{caller_line}'.
+           This was caught by a monkey patch in the test suite.
+           Using #{super_omg_digest} (the object_id).
+        EOF
+        super_omg_digest
+      end
+      def warn(msg)
+        STDOUT.puts(msg)
+      end
+    end
+  end
+end
 class AuthorSerializer < ActiveModel::Serializer
   attributes :id, :name
 

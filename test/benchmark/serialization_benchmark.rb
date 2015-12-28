@@ -22,37 +22,40 @@ module ActionController
 
       tests PostController
 
-      # External configuration:
-      # Cache is on when CACHE_ON != 'false'
-      # Tests CACHING_SERIALIZER != 'false' ? :render_with_caching_serializer : :render_with_non_caching_serializer
-      # Iterates TIMES, defaults to 1,000
       def test_render_benchmark
-        cache_on!(caching?)
-        action = action_to_test
-        warmup(action)
-        if ENV['DEBUG'] == 'true'
-          $stderr.puts "Running with caching '#{caching?}', against '#{action}', '#{n_times}' times."
+        scenarios = {
+          'caching on: caching serializers' => { cache_on: true, action: :render_with_caching_serializer },
+          'caching off: caching serializers' => { cache_on: false, action: :render_with_caching_serializer },
+          'caching on: non-caching serializers' => { cache_on: true, action: :render_with_non_caching_serializer },
+          'caching off: non-caching serializers' => { cache_on: false, action: :render_with_non_caching_serializer }
+        }
+        json_path = ENV['OUTPUT_PATH']
+        puts "Saving output to json_path '#{json_path}'"
+        Benchmark.ips(quiet: true) do |x|
+          # the warmup phase (default 2) and calculation phase (default 5)
+          x.config(time: 5, warmup: 2)
+          scenarios.each do |name, options|
+            x.report(name) do |times|
+              ActionController::Base.cache_store.clear
+              action = options.fetch(:action)
+              cache_on!(options.fetch(:cache_on))
+              # get action
+              # assert_equal 'application/json', @response.content_type
+              # assert_equal expected.to_json, @response.body
+              i = 0
+              while i < times
+                get options[:action]
+                i += 1
+              end
+            end
+          end
+
+          x.json!(json_path) if json_path
+          x.compare!
         end
-        request_loop(action, n_times)
       end
 
       private
-
-      def request_loop(action, times)
-        ActionController::Base.cache_store.clear
-        i = 0
-        while i < times
-          get action
-          i += 1
-        end
-      end
-
-      def warmup(action)
-        ActionController::Base.cache_store.clear
-        get action
-        assert_equal 'application/json', @response.content_type
-        assert_equal expected.to_json, @response.body
-      end
 
       def expected
         {
@@ -75,26 +78,6 @@ module ActionController
             }
           }
         }
-      end
-
-      # Number of times to iterate, is 1,000, but can be set as TIMES=times
-      def n_times
-        Integer(ENV.fetch('TIMES', 1_000))
-      end
-
-      # Cache always on unless CACHE_ON=false
-      def caching?
-        ENV['CACHE_ON'] != 'false'
-      end
-
-      # Always test :render_with_caching_serializer
-      # unless CACHING_SERIALIZER=false, then :render_with_non_caching_serializer
-      def action_to_test
-        if ENV['CACHING_SERIALIZER'] != 'false'
-          :render_with_caching_serializer
-        else
-          :render_with_non_caching_serializer
-        end
       end
 
       def cache_on!(bool)

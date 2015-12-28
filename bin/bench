@@ -1,9 +1,10 @@
 #!/usr/bin/env ruby
 require 'fileutils'
-require 'benchmark'
 require 'pathname'
 require 'shellwords'
 require 'English'
+require 'json'
+require 'benchmark'
 require 'benchmark/ips'
 
 class Benchmarking
@@ -11,11 +12,14 @@ class Benchmarking
   TMP_DIR_NAME = File.join('tmp', 'bench')
   TMP_DIR = File.join(ROOT, TMP_DIR_NAME)
 
-  attr_reader :prepend, :append, :gem_require_paths
+  attr_reader :prepend, :append, :output_path, :gem_require_paths
 
   def initialize(prepend: '', append: '')
     @prepend = prepend
     @append = append
+    @output_path = ENV.fetch('OUTPUT_PATH') { File.join(TMP_DIR_NAME, 'data.json') }
+    FileUtils.touch(output_path)
+    prepend << " OUTPUT_PATH=#{output_path}"
     @gem_require_paths = []
     refresh_temp_dir
   end
@@ -48,7 +52,7 @@ class Benchmarking
     fill_temp_dir
   end
 
-  def benchmark_tests(prepend = prepend())
+  def benchmark_tests
     tmp_dir = Shellwords.shellescape(TMP_DIR)
     sh("#{prepend} bundle exec ruby -Ilib:test:#{gem_require_paths.join(':')} #{tmp_dir}/*_benchmark.rb #{append}")
   end
@@ -58,36 +62,50 @@ class Benchmarking
   end
 
   def checkout_ref(ref)
-    puts `git checkout --quiet #{ref}`.chomp
+    debug `git checkout --quiet #{ref}`.chomp
     abort "Checkout failed: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+  end
+
+  def benchmark_revisions(ref1: nil, ref2: nil)
+    ref0 = current_branch
+    ref1 ||= current_branch
+    ref2 ||= 'master'
+    reports = {}
+
+    revisions(ref1, ref2).each do |rev|
+      debug { "Checking out: #{`git log --oneline -1 #{rev}`}" }
+      checkout_ref(rev)
+      benchmark_tests
+      reports[rev] = JSON.load(File.read(output_path))
+      clean_head
+    end
+    checkout_ref(ref0)
+    debug "OK for all revisions!"
+    reports
+  rescue Exception # rubocop:disable Lint/RescueException
+    STDERR.puts $!.message
+    checkout_ref(ref0)
+    raise
+  ensure
+    return reports
+  end
+
+  def revisions(start_ref, end_ref)
+    cmd = "git rev-list --reverse #{start_ref}..#{end_ref}"
+    `#{cmd}`.chomp.split("\n")
   end
 
   def benchmark_refs(ref1: nil, ref2: nil)
     ref0 = current_branch
     ref1 ||= current_branch
     ref2 ||= 'master'
-    reports = []
-    {
-      'caching on: caching serializers' => 'TIMES=100 CACHE_ON=true CACHING_SERIALIZER=true DEBUG=true'
-      # 'caching off: caching serializers' => 'CACHE_ON=false CACHING_SERIALIZER=true',
-      # 'caching on: non-caching serializers' => 'CACHE_ON=true CACHING_SERIALIZER=false',
-      # 'caching off: non-caching serializers' => 'CACHE_ON=false CACHING_SERIALIZER=false'
-    }.each do |name, env_vars| 
-      reports <<  Benchmark.ips(quiet: true) do |x|
-        # the warmup phase (default 2) and calculation phase (default 5)
-        x.config(time: 5, warmup: 2)
-        x.report("#{ref1}--#{name}") do |_times|
-          checkout_ref(ref1)
-          benchmark_tests(env_vars)
-        end
+    reports = {}
 
-        x.report("#{ref2}--#{name}") do |_times|
-          checkout_ref(ref2)
-          benchmark_tests(env_vars)
-        end
+    run_benchmark_at_ref(ref1)
+    reports[ref1] = JSON.load(File.read(output_path))
 
-      end
-    end
+    run_benchmark_at_ref(ref2)
+    reports[ref2] = JSON.load(File.read(output_path))
 
     checkout_ref(ref0)
 
@@ -99,12 +117,11 @@ class Benchmarking
 
   def run_benchmark
     bundle
-    parse_measurement Benchmark.measure {
-      benchmark_tests
-    }
+    benchmark_tests
   end
 
   def run_benchmark_at_ref(ref)
+    debug "Running against #{ref}"
     checkout_ref(ref)
     run_benchmark
   end
@@ -113,41 +130,48 @@ class Benchmarking
     sh('rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet')
   end
 
-  def parse_measurement(measurement)
-    user = measurement.utime
-    system = measurement.stime
-    total = measurement.total
-    real = measurement.real
-    {
-      :real => real,
-      :total => total,
-      :user => user,
-      :system => system
-    }
+  def clean_head
+    sh('git reset --hard --quiet')
   end
 
   def sh(cmd)
-    puts cmd
+    debug cmd
     system(cmd)
+  end
+
+  def debug(msg = '')
+    if block_given?
+      STDOUT.puts yield
+    else
+      STDOUT.puts msg
+    end
   end
 end
 
 if $PROGRAM_NAME == __FILE__
   # Example configuration using all options
-  #   benchmarking = Benchmarking.new(prepend: 'TIMES=1000 CACHE_ON=true CACHING_SERIALIZER=true DEBUG=true', append: '> /dev/null')
-  #   benchmarking = Benchmarking.new(prepend: 'CACHE_ON=false CACHING_SERIALIZER=false', append: '> /dev/null')
-  benchmarking = Benchmarking.new(append: '> /dev/null')
+  #   benchmarking = Benchmarking.new(prepend: 'TIMES=1000', append: '> /dev/null')
+  # TODO: add concept of metrics_type. Probably send to initializer.
+  #   metrics_type = 'ips' # 'simple'
+  #   when simple, just run Benchmark.measure { run_only_caching_with_cached_serializers }
+  #   for quick comparision of cache performance across branches
+  benchmarking = Benchmarking.new# (append: '> /dev/null')
   test_type = ARGV[0]
   case test_type
   when 'current'
-    puts "Ran in #{benchmarking.run_benchmark} seconds."
+    STDERR.puts "Ran in #{benchmarking.run_benchmark} seconds."
+  when 'revisions'
+    reports = benchmarking.benchmark_revisions(ref1: ARGV[1], ref2: ARGV[2])
+    reports.each do |name, value|
+      STDERR.puts "#{name}\n\t#{value}"
+    end
   else
     # Default: Compare current_branch to master
     # Optionally: pass in two refs as args to `bin/bench`
     # TODO: Consider checking across more revisions, to automatically find problems.
     reports = benchmarking.benchmark_refs(ref1: ARGV[0], ref2: ARGV[1])
-    reports.each do |report|
-      puts report.run_comparison
+    reports.each do |name, value|
+      STDERR.puts "#{name}\n\t#{value}"
     end
   end
 end
