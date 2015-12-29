@@ -16,7 +16,13 @@ module ActiveModel
             self._meta = value
           end
 
+          def string(value)
+            self._string = value
+          end
+
           def to_hash
+            return _string unless _string.nil?
+
             hash = { href: _href }
             hash.merge!(meta: _meta) if _meta
 
@@ -25,7 +31,7 @@ module ActiveModel
 
           protected
 
-          attr_accessor :_href, :_meta
+          attr_accessor :_href, :_meta, :_string
           attr_reader :object, :scope
         end
       end
