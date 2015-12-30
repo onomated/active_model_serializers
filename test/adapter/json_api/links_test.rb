@@ -15,7 +15,7 @@ module ActiveModel
             link :other, '//example.com/resource'
 
             link :yet_another do
-              string "//example.com/resource/#{object.id}"
+              "//example.com/resource/#{object.id}"
             end
           end
 
