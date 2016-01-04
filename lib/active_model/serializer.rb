@@ -17,6 +17,8 @@ module ActiveModel
     include Associations
     include Attributes
     include Caching
+    include ::ActiveModel::Serializers::JSON
+
     require 'active_model/serializer/adapter'
 
     with_options instance_writer: false, instance_reader: false do |serializer|
