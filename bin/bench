@@ -1,0 +1,116 @@
+#!/usr/bin/env ruby
+# ActiveModelSerializers Benchmark driver
+# Adapted from
+# https://github.com/ruby-bench/ruby-bench-suite/blob/8ad567f7e43a044ae48c36833218423bb1e2bd9d/rails/benchmarks/driver.rb
+require 'bundler'
+Bundler.setup
+require 'json'
+require 'pathname'
+require 'optparse'
+require 'digest'
+require 'pathname'
+
+class BenchmarkDriver
+  ROOT = Pathname File.expand_path(File.join('..', '..'), __FILE__)
+  BASE = ENV.fetch('BASE') { ROOT.join('test', 'dummy') }
+
+  def self.benchmark(options)
+    self.new(options).run
+  end
+
+  def initialize(options)
+    @repeat_count = options[:repeat_count]
+    @pattern      = options[:pattern]
+    @env          = Array(options[:env]).join(' ')
+  end
+
+  def run
+    files.each do |path|
+      next if !@pattern.empty? && /#{@pattern.join('|')}/ !~ File.basename(path)
+      run_single(path)
+    end
+  end
+
+  private
+
+  def files
+    Dir[File.join(BASE, 'bm_*')]
+  end
+
+  def run_single(path)
+    script = "RAILS_ENV=production #{@env} ruby #{path}"
+    environment = `ruby -v`.chomp.strip[/\d+\.\d+\.\d+\w+/]
+    commit_hash = ENV['COMMIT_HASH'] || `git rev-parse --short HEAD`.chomp
+
+    runs_output = measure(script)
+
+    results = {}
+    results['commit_hash'] = commit_hash
+    results['version'] = runs_output.first['version']
+    results['benchmark_run[environment]'] = environment
+    results['runs'] = []
+
+    runs_output.each do |output|
+      results['runs'] << {
+        'benchmark_type[category]' => output["label"],
+        'benchmark_run[result][iterations_per_second]' => output['iterations_per_second'].round(3),
+        'benchmark_run[result][total_allocated_objects_per_iteration]' => output["total_allocated_objects_per_iteration"]
+      }
+    end
+  ensure
+    report(results)
+  end
+
+  def report(results)
+    puts 'Benchmark results:'
+    puts JSON.pretty_generate(results)
+  end
+
+  def summarize(result)
+    puts "#{result['label']} #{result['iterations_per_second']}/ips"
+  end
+
+  # FIXME: ` provides the full output but it'll return failed output as well.
+  def measure(script)
+    results = Hash.new {|h,k| h[k] = []}
+
+    @repeat_count.times do
+      output = `#{script}`
+      output.each_line do |line|
+        result = JSON.parse(line)
+        summarize(result)
+        results[result['label']] << result
+      end
+    end
+
+    results.map do |_, bm_runs|
+      bm_runs.sort_by do |run|
+        run['iterations_per_second']
+      end.last
+    end
+  end
+end
+
+options = {
+  repeat_count: 1,
+  pattern: [],
+  env: "CACHE_ON=on"
+}
+
+OptionParser.new do |opts|
+  opts.banner = "Usage: bin/bench [options]"
+
+  opts.on("-r", "--repeat-count [NUM]", "Run benchmarks [NUM] times taking the best result") do |value|
+    options[:repeat_count] = value.to_i
+  end
+
+  opts.on("-p", "--pattern <PATTERN1,PATTERN2,PATTERN3>", "Benchmark name pattern") do |value|
+    options[:pattern] = value.split(',')
+  end
+
+  opts.on("-e", "--env <var1=val1,var2=val2,var3=vale>", "ENV variables to pass in") do |value|
+    options[:env] = value.split(',')
+  end
+end.parse!(ARGV)
+
+BenchmarkDriver.benchmark(options)
