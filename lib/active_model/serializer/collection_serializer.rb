@@ -8,7 +8,8 @@ module ActiveModel
       attr_reader :object, :root
 
       def initialize(resources, options = {})
-        @root = options[:root]
+        @instance_options = options
+        @root = instance_options[:root]
         @object = resources
         @serializers = resources.map do |resource|
           serializer_context_class = options.fetch(:serializer_context_class, ActiveModel::Serializer)
@@ -20,6 +21,11 @@ module ActiveModel
             serializer_class.new(resource, options.except(:serializer))
           end
         end
+      end
+
+      def serializable_hash(options = nil)
+        options ||= {}
+        serializers.map { |s| s.serializable_hash(options.merge(instance_options)) }
       end
 
       def json_key
@@ -34,7 +40,7 @@ module ActiveModel
 
       protected
 
-      attr_reader :serializers
+      attr_reader :serializers, :instance_options
 
       private
 

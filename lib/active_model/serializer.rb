@@ -113,6 +113,32 @@ module ActiveModel
       end
     end
 
+    def serializable_hash(options = nil)
+      options ||= {}
+      @include_tree = IncludeTree.from_include_args(options[:include] || '*')
+      resource = attributes(options[:fields])
+      relationships = resource_relationships(options)
+      resource.merge!(relationships)
+    end
+
+    def resource_relationships(options)
+      relationships = {}
+      associations(@include_tree).each do |association|
+        relationships[association.key] = relationship_value_for(association, options)
+      end
+
+      relationships
+    end
+
+    def relationship_value_for(association, options)
+      return association.options[:virtual_value] if association.options[:virtual_value]
+      return unless association.serializer && association.serializer.object
+
+      opts = instance_options.merge(include: @include_tree[association.key])
+      association.serializer.serializable_hash(options.merge(opts))
+      # Attributes.new(association.serializer, opts).serializable_hash(options)
+    end
+
     # Used by adapter as resource root.
     def json_key
       root || object.class.model_name.to_s.underscore
