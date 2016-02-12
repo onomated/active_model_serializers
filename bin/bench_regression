@@ -108,7 +108,7 @@ class BenchRegression
     raise
   end
 
-  def run_revisions(ref1: nil, ref2: nil, cmd:)
+  def benchmark_revisions(ref1: nil, ref2: nil, cmd:)
     ref0 = current_branch
     ref1 ||= current_branch
     ref2 ||= 'master'
@@ -129,6 +129,7 @@ class BenchRegression
 
   def run_benchmark_at_ref(ref, cmd)
     checkout_ref(ref)
+    cmd = "COMMIT_HASH=#{ref} #{Shellwords.shelljoin(cmd)}"
     run_benchmark(cmd)
   end
 
@@ -142,9 +143,7 @@ class BenchRegression
   end
 
   def benchmark_tests(cmd)
-    base = Shellwords.shellescape(TMP_DIR_BASE)
-    cmd = "COMMIT_HASH=#{ref} BASE=#{base} #{Shellwords.shelljoin(cmd)}"
-    cmd.sub('bin/bench', 'tmp/dummy/bench')
+    cmd.sub('bin/bench', "#{TMP_DIR_NAME}/bench")
     sh("bundle exec ruby -Ilib:#{gem_require_paths.join(':')} #{cmd}")
   end
 
@@ -167,15 +166,14 @@ if $PROGRAM_NAME == __FILE__
 
   case test_type
   when 'current'
-    puts "Ran in #{benchmarking.run_benchmark} seconds."
-    benchmarking.benchmark_tests
+    benchmarking.run_benchmark('bin/bench')
   when 'revisions'
     # Runs on every revision
-    benchmarking.benchmark_revisions(ref1: ARGV[1], ref2: ARGV[2])
+    benchmarking.benchmark_revisions(ref1: ref1, ref2: ref2, cmd: cmd)
   else
     # Default: Compare current_branch to master
     # Optionally: pass in two refs as args to `bin/bench_regression`
     # TODO: Consider checking across more revisions, to automatically find problems.
-    benchmarking.benchmark_refs(ref1: ARGV[0], ref2: ARGV[1])
+    benchmarking.benchmark_refs(ref1: ARGV[0], ref2: ARGV[1], cmd: ARGV[2])
   end
 end
