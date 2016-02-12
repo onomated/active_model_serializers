@@ -1,0 +1,280 @@
+#!/usr/bin/env ruby
+require 'fileutils'
+require 'pathname'
+require 'shellwords'
+require 'English'
+require 'net/http'
+require 'json'
+require 'benchmark'
+
+############################
+# USAGE
+#
+# bin/bench <ref1> <ref2>
+#   <ref1> defaults to the current branch
+#   <ref2> defaults to the master branch
+# bin/bench current # will run on the current branch
+# bin/bench revisions 792fb8a9053f8db3c562dae4f40907a582dd1720 master # every revision inclusive
+###########################
+
+class Benchmarking
+  ROOT = Pathname File.expand_path(File.join(*['..', '..']), __FILE__)
+  TMP_DIR_NAME = File.join('tmp', 'bench')
+  TMP_DIR = File.join(ROOT, TMP_DIR_NAME)
+
+  attr_reader :prepend, :append, :gem_require_paths
+
+  def initialize(prepend: '', append: '')
+    @prepend = prepend
+    @append = append
+    @gem_require_paths = []
+    refresh_temp_dir
+  end
+
+  def temp_dir_empty?
+    Dir[File.join(TMP_DIR, '*')].none?
+  end
+
+  def empty_temp_dir
+    return if temp_dir_empty?
+    FileUtils.mkdir_p(TMP_DIR)
+    Dir[File.join(TMP_DIR, '*')].each do |file|
+      if File.directory?(file)
+        FileUtils.rm_rf(file)
+      else
+        FileUtils.rm(file)
+      end
+    end
+  end
+
+  def fill_temp_dir
+    Dir[File.join(ROOT, 'test', 'dummy', '*.{rb,ru}')].each do |file|
+      FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
+    end
+    file = File.join('bin', 'serve_dummy')
+    FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
+    at_exit { empty_temp_dir }
+  end
+
+  def refresh_temp_dir
+    empty_temp_dir
+    fill_temp_dir
+  end
+
+  module RevisionMethods
+    module_function
+
+    def current_branch
+      @current_branch ||= `cat .git/HEAD | cut -d/ -f3,4,5`.chomp
+    end
+
+    def revisions(start_ref, end_ref)
+      cmd = "git rev-list --reverse #{start_ref}..#{end_ref}"
+      `#{cmd}`.chomp.split("\n")
+    end
+
+    def checkout_ref(ref)
+      debug { `git checkout #{ref}`.chomp }
+      abort "Checkout failed: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+    end
+
+    def revision_description(rev)
+      `git log --oneline -1 #{rev}`
+    end
+
+    def bundle
+      `rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet`
+    end
+
+    def clean_head
+      system('git reset --hard --quiet')
+    end
+  end
+  include RevisionMethods
+
+  def benchmark_refs(ref1: nil, ref2: nil)
+    ref0 = current_branch
+    ref1 ||= current_branch
+    ref2 ||= 'master'
+
+    reports = {}
+    reports[ref1] = run_benchmark_at_ref(ref1)
+    reports[ref2] = run_benchmark_at_ref(ref2)
+
+    checkout_ref(ref0)
+
+    reports
+  rescue Exception # rubocop:disable Lint/RescueException
+    checkout_ref(ref0)
+    raise
+  ensure
+    return reports
+  end
+
+  def benchmark_revisions(ref1: nil, ref2: nil)
+    ref0 = current_branch
+    ref1 ||= current_branch
+    ref2 ||= 'master'
+    reports = {}
+
+    revisions(ref1, ref2).each do |rev|
+      STDERR.puts "Checking out: #{revision_description(rev)}"
+
+      reports[rev] = run_benchmark_at_ref(rev)
+      clean_head
+    end
+    checkout_ref(ref0)
+    debug { "OK for all revisions!" }
+    reports
+  rescue Exception # rubocop:disable Lint/RescueException
+    STDERR.puts $!.message
+    checkout_ref(ref0)
+    raise
+  ensure
+    return reports
+  end
+
+  def run_benchmark_at_ref(ref)
+    checkout_ref(ref)
+    run_benchmark
+  end
+
+  def run_benchmark
+    bundle
+    restart_server
+    warmup
+    parse_measurement Benchmark.measure {
+      benchmark_tests
+    }
+  end
+
+  # TODO: benchmark these separately, using benchmark/ips.
+  # TODO: benchmark each with caching on and off
+  def benchmark_tests
+    100.times do
+      get_caching
+      get_non_caching
+    end
+  end
+
+  def restart_server
+    server_script = File.join(TMP_DIR_BASE, 'serve_dummy')
+    system("#{server_script} stop")
+    at_exit { system("#{server_script} stop") }
+    config_ru = Shellwords.shellescape(File.join(TMP_DIR_BASE, 'config.ru'))
+    pid = `CONFIG_RU=#{config_ru} #{server_script} start`.chomp
+    abort "No pid" if pid.empty?
+    pid = Integer(pid)
+    Process.kill(0, pid) # confirm running, else it raises
+  end
+
+  def warmup
+    assert_responses(get_caching, get_non_caching)
+    10.times do
+      get_caching
+      get_non_caching
+    end
+  end
+
+  # TODO: support /caching/{on,off}
+  def get_caching
+    get(url_base + "/caching")
+  end
+
+  # TODO: support /non_caching/{on,off}
+  def get_non_caching
+    get(url_base + "/non_caching")
+  end
+
+  # TODO: support /status/{on,off}
+
+  def assert_responses(caching, non_caching)
+    assert_equal(caching[:code], '200', "Caching response failed: #{caching}")
+    assert_equal(caching[:body], expected, "Caching response format failed: \n+ #{caching[:body]}\n- #{expected}")
+    assert_equal(caching[:content_type], 'application/json', "Caching response content type  failed: \n+ #{caching[:content_type]}\n- application/json")
+    assert_equal(non_caching[:code], '200', "Non caching response failed: #{non_caching}")
+    assert_equal(non_caching[:body], expected, "Non Caching response format failed: \n+ #{non_caching[:body]}\n- #{expected}")
+    assert_equal(non_caching[:content_type], 'application/json', "Non caching response content type  failed: \n+ #{non_caching[:content_type]}\n- application/json")
+  end
+
+  def get(url)
+    uri = URI(url)
+    response = Net::HTTP.get_response(uri)
+    { code: response.code, body: JSON.load(response.body), content_type: response.content_type }
+  end
+
+  def parse_measurement(measurement)
+    user = measurement.utime
+    system = measurement.stime
+    total = measurement.total
+    real = measurement.real
+    {
+      :real => real,
+      :total => total,
+      :user => user,
+      :system => system
+    }
+  end
+
+  def expected
+    @expected ||=
+      {
+        "post" =>  {
+          "id" =>  1,
+          "title" =>  "New Post",
+          "body" =>  "Body",
+          "comments" => [
+            {
+              "id" =>  1,
+              "body" =>  "ZOMG A COMMENT"
+            }
+          ],
+          "blog" =>  {
+            "id" =>  999,
+            "name" =>  "Custom blog"
+          },
+          "author" =>  {
+            "id" =>  1,
+            "name" =>  "Joao Moura."
+          }
+        }
+    }
+  end
+
+  def assert_equal(expected, actual, message)
+    return true if expected == actual
+    debug { message }
+    false
+  end
+
+  def debug(msg = '')
+    if block_given? && $DEBUG
+      STDOUT.puts yield
+    else
+      STDOUT.puts msg
+    end
+  end
+end
+
+if $PROGRAM_NAME == __FILE__
+  benchmarking = Benchmarking.new
+  test_type = ARGV[0]
+  case test_type
+  when 'current'
+    puts "Ran in #{benchmarking.run_benchmark} seconds."
+  when 'revisions'
+    # Runs on every revision
+    reports = benchmarking.benchmark_revisions(ref1: ARGV[1], ref2: ARGV[2])
+    reports.each do |name, value|
+      STDERR.puts "#{name}\n\t#{value}"
+    end
+  else
+    # Default: Compare current_branch to master
+    # Optionally: pass in two refs as args to `bin/bench`
+    # TODO: Consider checking across more revisions, to automatically find problems.
+    reports = benchmarking.benchmark_refs(ref1: ARGV[0], ref2: ARGV[1])
+    reports.each do |name, value|
+      STDERR.puts "#{name}\n\t#{value}"
+    end
+  end
+end
