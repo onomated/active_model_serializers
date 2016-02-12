@@ -67,30 +67,30 @@ class BenchRegression
     module_function
 
     def current_branch
-      @current_branch ||= capture("cat .git/HEAD | cut -d/ -f3,4,5")
+      @current_branch ||= `cat .git/HEAD | cut -d/ -f3,4,5`.chomp
     end
 
     def revisions(start_ref, end_ref)
       cmd = "git rev-list --reverse #{start_ref}..#{end_ref}"
-      capture(cmd).split("\n")
+      `#{cmd}`.chomp.split("\n")
     end
 
     def checkout_ref(ref)
-      puts capture("git checkout --quiet #{ref}")
+      `git checkout #{ref}`.chomp
       abort "Checkout failed: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
     end
 
     def revision_description(rev)
-      capture("git log --oneline -1 #{rev}")
+      `git log --oneline -1 #{rev}`.chomp
     end
 
     def bundle
-      # can't use 'sh' since it isn't blocking
-      puts `rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet`.chomp
+      `rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet`
+      abort "Bundle failed at: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
     end
 
     def clean_head
-      sh('git reset --hard --quiet')
+      system('git reset --hard --quiet')
     end
 
     def capture(cmd)
@@ -144,22 +144,22 @@ class BenchRegression
 
   def run_benchmark_at_ref(ref, cmd)
     checkout_ref(ref)
-    cmd = "COMMIT_HASH=#{ref} #{Shellwords.shelljoin(cmd)}"
-    run_benchmark(cmd)
+    run_benchmark(cmd, ref)
   end
 
-  def run_benchmark(cmd)
+  def run_benchmark(cmd, ref)
     bundle
-    benchmark_tests(cmd)
+    benchmark_tests(cmd, ref)
   end
 
   def bundle
-    sh('rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet')
+    sh('rm -f Gemfile.lock; bundle install') # bundle check || bundle --local --quiet || bundle --quiet')
   end
 
-  def benchmark_tests(cmd)
+  def benchmark_tests(cmd, ref)
+    cmd = "COMMIT_HASH=#{ref} bundle exec ruby -Ilib:#{gem_require_paths.join(':')} #{Shellwords.shelljoin(cmd)}"
     cmd.sub('bin/bench', "#{TMP_DIR_NAME}/bench")
-    sh("bundle exec ruby -Ilib:#{gem_require_paths.join(':')} #{cmd}")
+    sh(cmd)
   end
 end
 
