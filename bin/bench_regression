@@ -1,0 +1,122 @@
+#!/usr/bin/env ruby
+require 'fileutils'
+require 'pathname'
+require 'shellwords'
+require 'English'
+require 'benchmark/ips'
+
+############################
+# USAGE
+#
+# bin/bench <ref1> <ref2>
+#   <ref1> defaults to the current branch
+#   <ref2> defaults to the master branch
+# bin/bench current # will run on the current branch
+# bin/bench_regression revisions 792fb8a9053f8db3c562dae4f40907a582dd1720 master # every revision inclusive
+###########################
+
+class BenchRegression
+  ROOT = Pathname File.expand_path(File.join(*['..', '..']), __FILE__)
+  TMP_DIR_NAME = File.join('tmp', 'bench')
+  TMP_DIR = File.join(ROOT, TMP_DIR_NAME)
+
+  attr_reader :gem_require_paths
+
+  def initialize
+    @gem_require_paths = []
+    refresh_temp_dir
+  end
+
+  def temp_dir_empty?
+    Dir[File.join(TMP_DIR, '*')].none?
+  end
+
+  def empty_temp_dir
+    FileUtils.mkdir_p(TMP_DIR)
+    Dir[File.join(TMP_DIR, '*')].each do |file|
+      FileUtils.rm(file)
+    end
+  end
+
+  def fill_temp_dir
+    Dir[File.join(ROOT, 'test', 'benchmark', '*.rb')].each do |file|
+      FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
+    end
+    at_exit { empty_temp_dir }
+
+    directory_name = `bundle exec gem unpack benchmark-ips --target=#{Shellwords.shellescape(TMP_DIR)}`[/benchmark-ips.+\d/]
+    gem_path = File.join(TMP_DIR, directory_name)
+    gem_require_paths << File.join(TMP_DIR_NAME, directory_name, 'lib')
+    at_exit { FileUtils.rm_rf(gem_path) }
+  end
+
+  def refresh_temp_dir
+    empty_temp_dir
+    fill_temp_dir
+  end
+
+  def benchmark_tests(prepend = prepend())
+    tmp_dir = Shellwords.shellescape(TMP_DIR)
+    sh("bundle exec ruby -Ilib:#{gem_require_paths.join(':')} bin/bench")
+  end
+
+  def current_branch
+    @current_branch ||= `cat .git/HEAD | cut -d/ -f3,4,5`.chomp
+  end
+
+  def checkout_ref(ref)
+    puts `git checkout --quiet #{ref}`.chomp
+    abort "Checkout failed: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+  end
+
+  def benchmark_refs(ref1: nil, ref2: nil)
+    ref0 = current_branch
+    ref1 ||= current_branch
+    ref2 ||= 'master'
+
+    # benchmark_tests
+    checkout_ref(ref0)
+
+    reports
+  rescue Exception # rubocop:disable Lint/RescueException
+    checkout_ref(ref0)
+    raise
+  end
+
+  def run_benchmark
+    bundle
+    benchmark_tests
+  end
+
+  def run_benchmark_at_ref(ref)
+    checkout_ref(ref)
+    run_benchmark
+  end
+
+  def bundle
+    sh('rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet')
+  end
+
+  def sh(cmd)
+    puts cmd
+    system(cmd)
+  end
+end
+
+if $PROGRAM_NAME == __FILE__
+  benchmarking = BenchRegression.new
+
+  test_type = ARGV[0]
+  case test_type
+  when 'current'
+    puts "Ran in #{benchmarking.run_benchmark} seconds."
+  else
+    # Default: Compare current_branch to master
+    # Optionally: pass in two refs as args to `bin/bench`
+    # TODO: Consider checking across more revisions, to automatically find problems.
+    reports = benchmarking.benchmark_refs(ref1: ARGV[0], ref2: ARGV[1])
+    reports.each do |report|
+      puts report.run_comparison
+    end
+  end
+end
