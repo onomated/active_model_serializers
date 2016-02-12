@@ -13,7 +13,7 @@ class ApiAssertion
     non_caching[:body].delete('meta')
     assert_responses(caching, non_caching)
   rescue BadRevisionError => e
-    msg = e.message
+    msg = { error: e.message }
     STDOUT.puts msg
     exit 1
   end

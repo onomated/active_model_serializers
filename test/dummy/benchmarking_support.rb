@@ -1,7 +1,7 @@
 begin
   require 'benchmark/ips'
 rescue LoadError
-  abort "NO benchmark ips. Weird"
+  require 'benchmark'
 end
 require 'json'
 

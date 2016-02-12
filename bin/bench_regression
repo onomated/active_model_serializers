@@ -28,7 +28,8 @@ class BenchRegression
   end
 
   def temp_dir_empty?
-    Dir[File.join(TMP_DIR, '*')].none?
+    File.directory?(TMP_DIR) &&
+      Dir[File.join(TMP_DIR, '*')].none?
   end
 
   def empty_temp_dir
@@ -46,7 +47,7 @@ class BenchRegression
   def fill_temp_dir
     vendor_files(Dir[File.join(ROOT, 'test', 'dummy', '*.{rb,ru}')])
     vendor_file(File.join('bin', 'bench'))
-    at_exit { empty_temp_dir }
+    housekeeping { empty_temp_dir }
     vendor_gem('benchmark-ips')
   end
 
@@ -64,14 +65,16 @@ class BenchRegression
     directory_name = `bundle exec gem unpack benchmark-ips --target=#{Shellwords.shellescape(TMP_DIR)}`[/benchmark-ips.+\d/]
     gem_path = File.join(TMP_DIR, directory_name)
     gem_require_paths << File.join(TMP_DIR_NAME, directory_name, 'lib')
-    require 'pry'
-    binding.pry
-    at_exit { FileUtils.rm_rf(gem_path) }
+    housekeeping { FileUtils.rm_rf(gem_path) }
   end
 
   def refresh_temp_dir
     empty_temp_dir
     fill_temp_dir
+  end
+
+  def housekeeping
+    at_exit { yield }
   end
 
   module RevisionMethods
@@ -210,7 +213,8 @@ class BenchRegression
     # bundle = Gem.bin('bunle'
     # Bundler.with_clean_env(&block)
 
-    cmd = "COMMIT_HASH=#{ref} BASE=#{base} bundle exec ruby -Ilib:#{gem_require_paths.join(':')} -rbenchmark/ips #{Shellwords.shelljoin(cmd)}"
+    cmd = Shellwords.shelljoin(cmd)
+    cmd = "COMMIT_HASH=#{ref} BASE=#{base} bundle exec ruby -Ilib:#{gem_require_paths.join(':')} -rbenchmark/ips #{cmd}"
     cmd.sub('bin/bench', "#{TMP_DIR_NAME}/bench")
     sh(cmd)
   end

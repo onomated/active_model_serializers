@@ -62,7 +62,7 @@ class BenchmarkDriver
       }
     end
   ensure
-    report(results)
+    results && report(results)
   end
 
   def report(results)
@@ -81,9 +81,15 @@ class BenchmarkDriver
     @repeat_count.times do
       output = `#{script}`
       output.each_line do |line|
-        result = JSON.parse(line)
-        summarize(result)
-        results[result['label']] << result
+        next if line.nil?
+        begin
+          result = JSON.parse(line)
+        rescue JSON::ParserError
+          result = { error: line }
+        else
+          summarize(result)
+          results[result['label']] << result
+        end
       end
     end
 
