@@ -20,11 +20,14 @@ class BenchRegression
   TMP_DIR_NAME = File.join('tmp', 'bench')
   TMP_DIR = File.join(ROOT, TMP_DIR_NAME)
 
-  attr_reader :gem_require_paths
+  attr_reader :gem_require_paths, :gem_paths
+  attr_writer :vendor
 
   def initialize
     @gem_require_paths = []
+    @gem_paths = []
     refresh_temp_dir
+    @vendor = false
   end
 
   def temp_dir_empty?
@@ -33,6 +36,7 @@ class BenchRegression
   end
 
   def empty_temp_dir
+    return if @vendor
     return if temp_dir_empty?
     FileUtils.mkdir_p(TMP_DIR)
     Dir[File.join(TMP_DIR, '*')].each do |file|
@@ -63,9 +67,14 @@ class BenchRegression
 
   def vendor_gem(gem_name)
     directory_name = `bundle exec gem unpack benchmark-ips --target=#{Shellwords.shellescape(TMP_DIR)}`[/benchmark-ips.+\d/]
-    gem_path = File.join(TMP_DIR, directory_name)
+    gem_paths << File.join(TMP_DIR, directory_name)
     gem_require_paths << File.join(TMP_DIR_NAME, directory_name, 'lib')
-    housekeeping { FileUtils.rm_rf(gem_path) }
+    housekeeping { remove_vendored_gems }
+  end
+
+  def remove_vendored_gems
+    return if @vendor
+    FileUtils.rm_rf(*gem_paths)
   end
 
   def refresh_temp_dir
@@ -243,6 +252,8 @@ if $PROGRAM_NAME == __FILE__
     cmd = ['tmp/bench/bench'].concat(cmd) unless args.include?('bin/bench')
     p cmd
     benchmarking.benchmark_revisions(ref1: ref1, ref2: ref2, cmd: cmd)
+  when 'vendor'
+    benchmarking.vendor = true
   else
     # Default: Compare current_branch to master
     # Optionally: pass in two refs as args to `bin/bench_regression`
