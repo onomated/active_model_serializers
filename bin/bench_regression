@@ -3,6 +3,7 @@ require 'fileutils'
 require 'pathname'
 require 'shellwords'
 require 'English'
+require_relative 'bench'
 
 ############################
 # USAGE
@@ -50,7 +51,7 @@ class BenchRegression
 
   def fill_temp_dir
     vendor_files(Dir[File.join(ROOT, 'test', 'dummy', '*.{rb,ru}')])
-    vendor_file(File.join('bin', 'bench'))
+    # vendor_file(File.join('bin', 'bench'))
     housekeeping { empty_temp_dir }
     vendor_gem('benchmark-ips')
   end
@@ -222,10 +223,16 @@ class BenchRegression
     # bundle = Gem.bin('bunle'
     # Bundler.with_clean_env(&block)
 
-    cmd = Shellwords.shelljoin(cmd)
-    cmd = "COMMIT_HASH=#{ref} BASE=#{base} bundle exec ruby -Ilib:#{gem_require_paths.join(':')} -rbenchmark/ips #{cmd}"
-    cmd.sub('bin/bench', "#{TMP_DIR_NAME}/bench")
-    sh(cmd)
+    # cmd = Shellwords.shelljoin(cmd)
+    # cmd = "COMMIT_HASH=#{ref} BASE=#{base} bundle exec ruby -Ilib:#{gem_require_paths.join(':')} -rbenchmark/ips #{cmd}"
+
+    # CURRENT THINKING: IMPORTANT
+    # Pass into require statement as RUBYOPTS i.e. via env rather than command line argument
+    # otherwise, have a 'fast ams benchmarking' module that extends benchmarkings to add the 'ams'
+    # method but doesn't depend on benchmark-ips
+    BenchmarkDriver.benchmark(options)
+    # cmd.sub('bin/bench', "#{TMP_DIR_NAME}/bench")
+    # sh(cmd)
   end
 end
 

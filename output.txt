@@ -1,0 +1,303 @@
+running tmp/bench/bench
+caching on: caching serializers: gc off 968.7015134164958/ips
+caching off: caching serializers: gc off 920.1655941054612/ips
+caching on: non-caching serializers: gc off 1121.348204007141/ips
+caching off: non-caching serializers: gc off 986.2652621599101/ips
+Benchmark results:
+{
+  "commit_hash": "e9a15a3",
+  "version": "0.10.0.rc3",
+  "benchmark_run[environment]": "2.2.3p173",
+  "runs": [
+    {
+      "benchmark_type[category]": "caching on: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 968.702,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1403
+    },
+    {
+      "benchmark_type[category]": "caching off: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 920.166,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1403
+    },
+    {
+      "benchmark_type[category]": "caching on: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 1121.348,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1109
+    },
+    {
+      "benchmark_type[category]": "caching off: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 986.265,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1109
+    }
+  ]
+}
+Bisecting: 170 revisions left to test after this (roughly 8 steps)
+[fce856fc83771a42cce0dc9994ef449ebe9943c0] Merge pull request #1371 from bf4/documentation_updates
+running tmp/bench/bench
+caching on: caching serializers: gc off 829.5534398123925/ips
+caching off: caching serializers: gc off 795.7694327846128/ips
+caching on: non-caching serializers: gc off 975.7532280091957/ips
+caching off: non-caching serializers: gc off 892.5418890298512/ips
+Benchmark results:
+{
+  "commit_hash": "fce856f",
+  "version": "0.10.0.rc3",
+  "benchmark_run[environment]": "2.2.3p173",
+  "runs": [
+    {
+      "benchmark_type[category]": "caching on: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 829.553,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1545
+    },
+    {
+      "benchmark_type[category]": "caching off: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 795.769,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1545
+    },
+    {
+      "benchmark_type[category]": "caching on: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 975.753,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1194
+    },
+    {
+      "benchmark_type[category]": "caching off: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 892.542,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1194
+    }
+  ]
+}
+Bisecting: 85 revisions left to test after this (roughly 7 steps)
+[8ffcdc76682aa5090aac788b8c1cb5b218cdf817] update CHANGELOG
+running tmp/bench/bench
+caching on: caching serializers: gc off 830.4434904831024/ips
+caching off: caching serializers: gc off 769.7399432386992/ips
+caching on: non-caching serializers: gc off 1018.2134230515286/ips
+caching off: non-caching serializers: gc off 910.7665326699987/ips
+Benchmark results:
+{
+  "commit_hash": "8ffcdc7",
+  "version": "0.10.0.rc3",
+  "benchmark_run[environment]": "2.2.3p173",
+  "runs": [
+    {
+      "benchmark_type[category]": "caching on: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 830.443,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1511
+    },
+    {
+      "benchmark_type[category]": "caching off: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 769.74,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1511
+    },
+    {
+      "benchmark_type[category]": "caching on: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 1018.213,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1170
+    },
+    {
+      "benchmark_type[category]": "caching off: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 910.767,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1170
+    }
+  ]
+}
+Bisecting: 42 revisions left to test after this (roughly 6 steps)
+[f32c0d97d5a3a609979b57655e107f678470fdaa] Merge pull request #1491 from domitian/fix-documentation-links-in-readme
+running tmp/bench/bench
+caching on: caching serializers: gc off 793.8270114252614/ips
+caching off: caching serializers: gc off 775.3267460256767/ips
+caching on: non-caching serializers: gc off 949.4272147037523/ips
+caching off: non-caching serializers: gc off 880.0693467417568/ips
+Benchmark results:
+{
+  "commit_hash": "f32c0d9",
+  "version": "0.10.0.rc4",
+  "benchmark_run[environment]": "2.2.3p173",
+  "runs": [
+    {
+      "benchmark_type[category]": "caching on: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 793.827,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1525
+    },
+    {
+      "benchmark_type[category]": "caching off: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 775.327,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1525
+    },
+    {
+      "benchmark_type[category]": "caching on: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 949.427,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1184
+    },
+    {
+      "benchmark_type[category]": "caching off: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 880.069,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1184
+    }
+  ]
+}
+Bisecting: 21 revisions left to test after this (roughly 5 steps)
+[4974295ee080bc64ce16f4978a685d51d4f9024e] Merge branch 'CheckMateIO-bugfix/fix-fragment-cached-check'
+running tmp/bench/bench
+caching on: caching serializers: gc off 830.412364798604/ips
+caching off: caching serializers: gc off 734.2985571774014/ips
+caching on: non-caching serializers: gc off 971.489930645935/ips
+caching off: non-caching serializers: gc off 884.1762437013234/ips
+Benchmark results:
+{
+  "commit_hash": "4974295",
+  "version": "0.10.0.rc4",
+  "benchmark_run[environment]": "2.2.3p173",
+  "runs": [
+    {
+      "benchmark_type[category]": "caching on: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 830.412,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1525
+    },
+    {
+      "benchmark_type[category]": "caching off: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 734.299,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1525
+    },
+    {
+      "benchmark_type[category]": "caching on: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 971.49,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1184
+    },
+    {
+      "benchmark_type[category]": "caching off: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 884.176,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1184
+    }
+  ]
+}
+Bisecting: 10 revisions left to test after this (roughly 4 steps)
+[7aacf24c39fa41004ee7c9d9ab3e48bd5d385942] AMS Benchmark tests #832
+running tmp/bench/bench
+Bisecting: 4 revisions left to test after this (roughly 3 steps)
+[fb48bced5e45ea0fe5e4454d772d2f1f1b9cf3e3] Merge branch 'add-issue-stats'
+running tmp/bench/bench
+caching on: caching serializers: gc off 806.4791800395609/ips
+caching off: caching serializers: gc off 749.5235709051908/ips
+caching on: non-caching serializers: gc off 976.7874919010709/ips
+caching off: non-caching serializers: gc off 933.7169046490651/ips
+Benchmark results:
+{
+  "commit_hash": "fb48bce",
+  "version": "0.10.0.rc4",
+  "benchmark_run[environment]": "2.2.3p173",
+  "runs": [
+    {
+      "benchmark_type[category]": "caching on: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 806.479,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1545
+    },
+    {
+      "benchmark_type[category]": "caching off: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 749.524,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1545
+    },
+    {
+      "benchmark_type[category]": "caching on: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 976.787,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1184
+    },
+    {
+      "benchmark_type[category]": "caching off: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 933.717,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1184
+    }
+  ]
+}
+Bisecting: 2 revisions left to test after this (roughly 1 step)
+[54aa6aa499f1b5d5a035e5cae815ad2ef9fce510] Merge branch 'LcpMarvel-support_read_multi'
+running tmp/bench/bench
+caching on: caching serializers: gc off 830.1251877053551/ips
+caching off: caching serializers: gc off 779.3405593960287/ips
+caching on: non-caching serializers: gc off 1024.9362476997849/ips
+caching off: non-caching serializers: gc off 948.0612583609603/ips
+Benchmark results:
+{
+  "commit_hash": "54aa6aa",
+  "version": "0.10.0.rc4",
+  "benchmark_run[environment]": "2.2.3p173",
+  "runs": [
+    {
+      "benchmark_type[category]": "caching on: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 830.125,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1631
+    },
+    {
+      "benchmark_type[category]": "caching off: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 779.341,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1631
+    },
+    {
+      "benchmark_type[category]": "caching on: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 1024.936,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1212
+    },
+    {
+      "benchmark_type[category]": "caching off: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 948.061,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1212
+    }
+  ]
+}
+Bisecting: 0 revisions left to test after this (roughly 1 step)
+[b45f7b4ffea36b44fdf7be075295ad9db6bea1b0] Add changelog for https://github.com/rails-api/active_model_serializers/pull/1372
+running tmp/bench/bench
+caching on: caching serializers: gc off 822.9841750530111/ips
+caching off: caching serializers: gc off 765.9210758052511/ips
+caching on: non-caching serializers: gc off 1015.7242053686227/ips
+caching off: non-caching serializers: gc off 970.2082862941686/ips
+Benchmark results:
+{
+  "commit_hash": "b45f7b4",
+  "version": "0.10.0.rc4",
+  "benchmark_run[environment]": "2.2.3p173",
+  "runs": [
+    {
+      "benchmark_type[category]": "caching on: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 822.984,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1631
+    },
+    {
+      "benchmark_type[category]": "caching off: caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 765.921,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1631
+    },
+    {
+      "benchmark_type[category]": "caching on: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 1015.724,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1212
+    },
+    {
+      "benchmark_type[category]": "caching off: non-caching serializers: gc off",
+      "benchmark_run[result][iterations_per_second]": 970.208,
+      "benchmark_run[result][total_allocated_objects_per_iteration]": 1212
+    }
+  ]
+}
+7aacf24c39fa41004ee7c9d9ab3e48bd5d385942 is the first bad commit
+commit 7aacf24c39fa41004ee7c9d9ab3e48bd5d385942
+Author: João Moura <joaomdmoura@gmail.com>
+Date:   Tue Mar 31 20:41:50 2015 -0300
+
+    AMS Benchmark tests #832
+    
+    Adding a benchmak test structure to help contributors to keep track
+    of how their PR will impact overall performance.
+    
+    It enables developers to create test inside of tests/benchmark.
+    
+    This implementation adds a rake task: ```rake benchmark``` that checkout
+    one commit before, run the test of  tests/benchmark, then mover back to
+    the last commit and run it again. By comparing the benchmark results between
+    both commits the contributor will notice if and how much  his contribution
+    will impact overall performance.
+
+:100644 100644 9f9282b56b087c22777570291175982bfe9870b8 406797bb30197a960c45aa8eca870c3448373a7d M	Gemfile
+:100644 100644 ef76e7a981b587886224e3291b08d87a8015c218 8caf69287de3e239569a2cb53c47e3e746d63a77 M	Rakefile
+:040000 040000 ce4f86a20d87f8ee9dada4b70c0a7bd5cf6efe70 e5383b36f7ff1ac564d5eda2827bf3983325c834 M	test
+bisect run success

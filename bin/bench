@@ -101,26 +101,28 @@ class BenchmarkDriver
   end
 end
 
-options = {
-  repeat_count: 1,
-  pattern: [],
-  env: "CACHE_ON=on"
-}
+if $PROGRAM_NAME == __FILE__
+  options = {
+    repeat_count: 1,
+    pattern: [],
+    env: "CACHE_ON=on"
+  }
 
-OptionParser.new do |opts|
-  opts.banner = "Usage: bin/bench [options]"
+  OptionParser.new do |opts|
+    opts.banner = "Usage: bin/bench [options]"
 
-  opts.on("-r", "--repeat-count [NUM]", "Run benchmarks [NUM] times taking the best result") do |value|
-    options[:repeat_count] = value.to_i
-  end
+    opts.on("-r", "--repeat-count [NUM]", "Run benchmarks [NUM] times taking the best result") do |value|
+      options[:repeat_count] = value.to_i
+    end
 
-  opts.on("-p", "--pattern <PATTERN1,PATTERN2,PATTERN3>", "Benchmark name pattern") do |value|
-    options[:pattern] = value.split(',')
-  end
+    opts.on("-p", "--pattern <PATTERN1,PATTERN2,PATTERN3>", "Benchmark name pattern") do |value|
+      options[:pattern] = value.split(',')
+    end
 
-  opts.on("-e", "--env <var1=val1,var2=val2,var3=vale>", "ENV variables to pass in") do |value|
-    options[:env] = value.split(',')
-  end
-end.parse!(ARGV)
+    opts.on("-e", "--env <var1=val1,var2=val2,var3=vale>", "ENV variables to pass in") do |value|
+      options[:env] = value.split(',')
+    end
+  end.parse!(ARGV)
 
-BenchmarkDriver.benchmark(options)
+  BenchmarkDriver.benchmark(options)
+end
