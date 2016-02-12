@@ -13,7 +13,8 @@ class ApiAssertion
     non_caching[:body].delete('meta')
     assert_responses(caching, non_caching)
   rescue BadRevisionError => e
-    msg = e.message
+    msg = { error: e.message }
+    STDERR.puts msg
     STDOUT.puts msg
     exit 1
   end
@@ -77,14 +78,18 @@ class ApiAssertion
 
   def assert_equal(expected, actual, message)
     return true if expected == actual
-    fail BadRevisionError, message
+    if ENV['FAIL_ASSERTION']
+      fail BadRevisionError, message
+    else
+      STDERR.puts message unless ENV['SUMMARIZE']
+    end
   end
 
   def debug(msg = '')
     if block_given? && ENV['DEBUG'] =~ /\Atrue|on|0\z/i
-      STDOUT.puts yield
+      STDERR.puts yield
     else
-      STDOUT.puts msg
+      STDERR.puts msg
     end
   end
 end

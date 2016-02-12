@@ -9,6 +9,7 @@ require 'pathname'
 require 'optparse'
 require 'digest'
 require 'pathname'
+require 'logger'
 
 class BenchmarkDriver
   ROOT = Pathname File.expand_path(File.join('..', '..'), __FILE__)
@@ -18,10 +19,42 @@ class BenchmarkDriver
     self.new(options).run
   end
 
+  def self.parse_argv_and_run(argv = ARGV, options = {})
+    options = {
+      repeat_count: 1,
+      pattern: [],
+      env: "CACHE_ON=on",
+    }.merge!(options)
+
+    OptionParser.new do |opts|
+      opts.banner = "Usage: bin/bench [options]"
+
+      opts.on("-r", "--repeat-count [NUM]", "Run benchmarks [NUM] times taking the best result") do |value|
+        options[:repeat_count] = value.to_i
+      end
+
+      opts.on("-p", "--pattern <PATTERN1,PATTERN2,PATTERN3>", "Benchmark name pattern") do |value|
+        options[:pattern] = value.split(',')
+      end
+
+      opts.on("-e", "--env <var1=val1,var2=val2,var3=vale>", "ENV variables to pass in") do |value|
+        options[:env] = value.split(',')
+      end
+    end.parse!(argv)
+
+    benchmark(options)
+  end
+
+  attr_reader :commit_hash, :base
+
   def initialize(options)
+    @writer       = ENV['SUMMARIZE'] ? Logger.new('output.txt') : STDOUT
     @repeat_count = options[:repeat_count]
     @pattern      = options[:pattern]
+    @commit_hash  = options.fetch(:commit_hash) { `git rev-parse --short HEAD`.chomp }
+    @base         = options.fetch(:base) { BASE }
     @env          = Array(options[:env]).join(' ')
+    @rubyopt       = options[:rubyopt] # TODO: rename
   end
 
   def run
@@ -34,15 +67,18 @@ class BenchmarkDriver
   private
 
   def files
-    Dir[File.join(BASE, 'bm_*')]
+    Dir[File.join(base, 'bm_*')]
   end
 
   def run_single(path)
-    script = "RAILS_ENV=production #{@env} ruby #{path}"
+    script = "RAILS_ENV=production #{@env} ruby #{@rubyopt} #{path}"
     environment = `ruby -v`.chomp.strip[/\d+\.\d+\.\d+\w+/]
-    commit_hash = ENV['COMMIT_HASH'] || `git rev-parse --short HEAD`.chomp
 
     runs_output = measure(script)
+    if runs_output.empty?
+      results = { error: :no_results }
+      return
+    end
 
     results = {}
     results['commit_hash'] = commit_hash
@@ -58,16 +94,16 @@ class BenchmarkDriver
       }
     end
   ensure
-    report(results)
+    results && report(results)
   end
 
   def report(results)
-    puts 'Benchmark results:'
-    puts JSON.pretty_generate(results)
+    @writer.puts 'Benchmark results:'
+    @writer.puts JSON.pretty_generate(results)
   end
 
   def summarize(result)
-    puts "#{result['label']} #{result['iterations_per_second']}/ips"
+    puts "#{result['label']} #{result['iterations_per_second']}/ips; #{result['total_allocated_objects_per_iteration']} objects"
   end
 
   # FIXME: ` provides the full output but it'll return failed output as well.
@@ -75,11 +111,17 @@ class BenchmarkDriver
     results = Hash.new {|h,k| h[k] = []}
 
     @repeat_count.times do
-      output = `#{script}`
+      output = sh(script)
       output.each_line do |line|
-        result = JSON.parse(line)
-        summarize(result)
-        results[result['label']] << result
+        next if line.nil?
+        begin
+          result = JSON.parse(line)
+        rescue JSON::ParserError
+          result = { error: line }
+        else
+          summarize(result)
+          results[result['label']] << result
+        end
       end
     end
 
@@ -89,28 +131,13 @@ class BenchmarkDriver
       end.last
     end
   end
+
+  def sh(cmd)
+    `#{cmd}`
+  end
+
 end
 
-options = {
-  repeat_count: 1,
-  pattern: [],
-  env: "CACHE_ON=on"
-}
-
-OptionParser.new do |opts|
-  opts.banner = "Usage: bin/bench [options]"
-
-  opts.on("-r", "--repeat-count [NUM]", "Run benchmarks [NUM] times taking the best result") do |value|
-    options[:repeat_count] = value.to_i
-  end
-
-  opts.on("-p", "--pattern <PATTERN1,PATTERN2,PATTERN3>", "Benchmark name pattern") do |value|
-    options[:pattern] = value.split(',')
-  end
-
-  opts.on("-e", "--env <var1=val1,var2=val2,var3=vale>", "ENV variables to pass in") do |value|
-    options[:env] = value.split(',')
-  end
-end.parse!(ARGV)
-
-BenchmarkDriver.benchmark(options)
+if $PROGRAM_NAME == __FILE__
+  BenchmarkDriver.parse_argv_and_run
+end
