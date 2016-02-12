@@ -3,7 +3,6 @@ require 'fileutils'
 require 'pathname'
 require 'shellwords'
 require 'English'
-require 'benchmark/ips'
 
 ############################
 # USAGE
@@ -45,16 +44,28 @@ class BenchRegression
   end
 
   def fill_temp_dir
-    Dir[File.join(ROOT, 'test', 'dummy', '*.{rb,ru}')].each do |file|
-      FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
-    end
-    file = File.join('bin', 'bench')
-    FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
+    vendor_files(Dir[File.join(ROOT, 'test', 'dummy', '*.{rb,ru}')])
+    vendor_file(File.join('bin', 'bench'))
     at_exit { empty_temp_dir }
+    vendor_gem('benchmark-ips')
+  end
 
+  def vendor_files(files)
+    files.each do |file|
+      vendor_file(file)
+    end
+  end
+
+  def vendor_file(file)
+    FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
+  end
+
+  def vendor_gem(gem_name)
     directory_name = `bundle exec gem unpack benchmark-ips --target=#{Shellwords.shellescape(TMP_DIR)}`[/benchmark-ips.+\d/]
     gem_path = File.join(TMP_DIR, directory_name)
     gem_require_paths << File.join(TMP_DIR_NAME, directory_name, 'lib')
+    require 'pry'
+    binding.pry
     at_exit { FileUtils.rm_rf(gem_path) }
   end
 
@@ -77,16 +88,11 @@ class BenchRegression
 
     def checkout_ref(ref)
       `git checkout #{ref}`.chomp
-      abort "Checkout failed: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+      # abort "Checkout failed: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
     end
 
     def revision_description(rev)
       `git log --oneline -1 #{rev}`.chomp
-    end
-
-    def bundle
-      `rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet`
-      abort "Bundle failed at: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
     end
 
     def clean_head
@@ -100,9 +106,48 @@ class BenchRegression
 
     def sh(cmd)
       puts cmd
-      system(cmd)
-      $CHILD_STATUS.exitstatus
+      # env = {}
+      # # out = STDOUT
+      # pid = spawn(env, cmd)
+      # Process.wait(pid)
+      pid = fork do
+        exec cmd
+      end
+      Process.waitpid2(pid)
+      # puts $CHILD_STATUS.exitstatus
     end
+    # require 'pty'
+    # should consider trapping SIGINT in here
+    # def run(cmd)
+    #   puts cmd
+    #   child_process = ''
+    #   result = ''
+    #   # http://stackoverflow.com/a/1162850
+    #   # stream output of subprocess
+    #   begin
+    #     PTY.spawn(cmd) do |stdin, _stdout, pid|
+    #       begin
+    #         # Do stuff with the output here. Just printing to show it works
+    #         stdin.each do |line|
+    #           print line
+    #           result << line
+    #         end
+    #         child_process = PTY.check(pid)
+    #       rescue Errno::EIO
+    #         puts 'Errno:EIO error, but this probably just means ' \
+    #               'that the process has finished giving output'
+    #       end
+    #     end
+    #   rescue PTY::ChildExited
+    #     puts 'The child process exited!'
+    #   end
+    #   unless child_process.success?
+    #     exitstatus = child_process.exitstatus
+    #     puts "FAILED: #{child_process.pid} exited with status #{exitstatus.inspect} due to failed command #{cmd}"
+    #     exit exitstatus || 1
+    #   end
+    #   result
+    # end
   end
   include RevisionMethods
 
@@ -118,6 +163,7 @@ class BenchRegression
     checking_out = true
     checkout_ref(ref0)
   rescue Exception # rubocop:disable Lint/RescueException
+    STDERR.puts $!.message
     checkout_ref(ref0) unless checking_out
     raise
   end
@@ -148,16 +194,23 @@ class BenchRegression
   end
 
   def run_benchmark(cmd, ref)
-    bundle
+    bundle(ref)
     benchmark_tests(cmd, ref)
   end
 
-  def bundle
-    `rm -f Gemfile.lock; bundle install` # bundle check || bundle --local --quiet || bundle --quiet')
+  def bundle(ref)
+    sh("rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet")
+    abort "Bundle failed at: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
   end
 
   def benchmark_tests(cmd, ref)
-    cmd = "COMMIT_HASH=#{ref} bundle exec ruby -Ilib:#{gem_require_paths.join(':')} #{Shellwords.shelljoin(cmd)}"
+    base = Shellwords.shellescape(TMP_DIR)
+    # cmd = "COMMIT_HASH=#{ref} BASE=#{base} #{Shellwords.shelljoin(cmd)}"
+    # cmd.sub('bin/bench', 'tmp/revision_runner/bench')
+    # bundle = Gem.bin('bunle'
+    # Bundler.with_clean_env(&block)
+
+    cmd = "COMMIT_HASH=#{ref} BASE=#{base} bundle exec ruby -Ilib:#{gem_require_paths.join(':')} -rbenchmark/ips #{Shellwords.shelljoin(cmd)}"
     cmd.sub('bin/bench', "#{TMP_DIR_NAME}/bench")
     sh(cmd)
   end
@@ -171,7 +224,9 @@ if $PROGRAM_NAME == __FILE__
     # super simple command line parsing
     args = ARGV.dup
     _    = args.shift
-    cmd  = ['bin/bench'].concat args
+    cmd  = args
+    cmd = ['tmp/bench/bench'].concat(cmd) unless args.include?('bin/bench')
+    p cmd
     benchmarking.run_benchmark('bin/bench')
   when 'revisions'
     # Runs on every revision
@@ -181,6 +236,8 @@ if $PROGRAM_NAME == __FILE__
     ref1      = args.shift
     ref2      = args.shift
     cmd       = args
+    cmd = ['tmp/bench/bench'].concat(cmd) unless args.include?('bin/bench')
+    p cmd
     benchmarking.benchmark_revisions(ref1: ref1, ref2: ref2, cmd: cmd)
   else
     # Default: Compare current_branch to master
@@ -192,6 +249,8 @@ if $PROGRAM_NAME == __FILE__
     ref1      = args.shift
     ref2      = args.shift
     cmd       = args
+    cmd = ['tmp/bench/bench'].concat(cmd) unless args.include?('bin/bench')
+    p cmd
     benchmarking.benchmark_refs(ref1: ref1, ref2: ref2, cmd: cmd)
   end
 end

@@ -43,6 +43,10 @@ class BenchmarkDriver
     commit_hash = ENV['COMMIT_HASH'] || `git rev-parse --short HEAD`.chomp
 
     runs_output = measure(script)
+    if runs_output.empty?
+      results = { error: :no_results }
+      return
+    end
 
     results = {}
     results['commit_hash'] = commit_hash

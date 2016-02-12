@@ -1,4 +1,8 @@
-require 'benchmark/ips'
+begin
+  require 'benchmark/ips'
+rescue LoadError
+  abort "NO benchmark ips. Weird"
+end
 require 'json'
 
 # Add benchmarking runner from ruby-bench-suite
