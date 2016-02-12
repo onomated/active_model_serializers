@@ -8,10 +8,10 @@ require 'benchmark/ips'
 ############################
 # USAGE
 #
-# bin/bench <ref1> <ref2>
+# bin/bench_regression <ref1> <ref2>
 #   <ref1> defaults to the current branch
 #   <ref2> defaults to the master branch
-# bin/bench current # will run on the current branch
+# bin/bench_regression current # will run on the current branch
 # bin/bench_regression revisions 792fb8a9053f8db3c562dae4f40907a582dd1720 master # every revision inclusive
 ###########################
 
@@ -32,16 +32,23 @@ class BenchRegression
   end
 
   def empty_temp_dir
+    return if temp_dir_empty?
     FileUtils.mkdir_p(TMP_DIR)
     Dir[File.join(TMP_DIR, '*')].each do |file|
-      FileUtils.rm(file)
+      if File.directory?(file)
+        FileUtils.rm_rf(file)
+      else
+        FileUtils.rm(file)
+      end
     end
   end
 
   def fill_temp_dir
-    Dir[File.join(ROOT, 'test', 'benchmark', '*.rb')].each do |file|
+    Dir[File.join(ROOT, 'test', 'dummy', '*.{rb,ru}')].each do |file|
       FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
     end
+    file = File.join('bin', 'bench')
+    FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
     at_exit { empty_temp_dir }
 
     directory_name = `bundle exec gem unpack benchmark-ips --target=#{Shellwords.shellescape(TMP_DIR)}`[/benchmark-ips.+\d/]
@@ -55,37 +62,68 @@ class BenchRegression
     fill_temp_dir
   end
 
-  def benchmark_tests(prepend = prepend())
-    tmp_dir = Shellwords.shellescape(TMP_DIR)
-    sh("bundle exec ruby -Ilib:#{gem_require_paths.join(':')} bin/bench")
-  end
+  module RevisionMethods
+    module_function
 
-  def current_branch
-    @current_branch ||= `cat .git/HEAD | cut -d/ -f3,4,5`.chomp
-  end
+    def current_branch
+      @current_branch ||= `cat .git/HEAD | cut -d/ -f3,4,5`.chomp
+    end
 
-  def checkout_ref(ref)
-    puts `git checkout --quiet #{ref}`.chomp
-    abort "Checkout failed: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+    def revisions(start_ref, end_ref)
+      cmd = "git rev-list --reverse #{start_ref}..#{end_ref}"
+      `#{cmd}`.chomp.split("\n")
+    end
+
+    def checkout_ref(ref)
+      puts `git checkout --quiet #{ref}`.chomp
+      abort "Checkout failed: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+    end
+
+    def revision_description(rev)
+      `git log --oneline -1 #{rev}`
+    end
+
+    def bundle
+      `rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet`
+    end
+
+    def clean_head
+      system('git reset --hard --quiet')
+    end
   end
+  include RevisionMethods
 
   def benchmark_refs(ref1: nil, ref2: nil)
     ref0 = current_branch
     ref1 ||= current_branch
     ref2 ||= 'master'
 
-    # benchmark_tests
-    checkout_ref(ref0)
+    run_benchmark_at_ref(ref1)
+    run_benchmark_at_ref(ref2)
 
-    reports
+    checkout_ref(ref0)
   rescue Exception # rubocop:disable Lint/RescueException
     checkout_ref(ref0)
     raise
   end
 
-  def run_benchmark
-    bundle
-    benchmark_tests
+  def benchmark_revisions(ref1: nil, ref2: nil)
+    ref0 = current_branch
+    ref1 ||= current_branch
+    ref2 ||= 'master'
+
+    revisions(ref1, ref2).each do |rev|
+      STDERR.puts "Checking out: #{revision_description(rev)}"
+
+      run_benchmark_at_ref(rev)
+      clean_head
+    end
+    checkout_ref(ref0)
+    debug { "OK for all revisions!" }
+  rescue Exception # rubocop:disable Lint/RescueException
+    STDERR.puts $!.message
+    checkout_ref(ref0)
+    raise
   end
 
   def run_benchmark_at_ref(ref)
@@ -93,8 +131,18 @@ class BenchRegression
     run_benchmark
   end
 
+  def run_benchmark
+    bundle
+    benchmark_tests
+  end
+
   def bundle
     sh('rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet')
+  end
+
+  def benchmark_tests
+    tmp_dir = Shellwords.shellescape(TMP_DIR)
+    sh("bundle exec ruby -Ilib:#{gem_require_paths.join(':')} #{tmp_dir}/#{cmd}")
   end
 
   def sh(cmd)
@@ -110,13 +158,14 @@ if $PROGRAM_NAME == __FILE__
   case test_type
   when 'current'
     puts "Ran in #{benchmarking.run_benchmark} seconds."
+    benchmarking.benchmark_tests
+  when 'revisions'
+    # Runs on every revision
+    benchmarking.benchmark_revisions(ref1: ARGV[1], ref2: ARGV[2])
   else
     # Default: Compare current_branch to master
-    # Optionally: pass in two refs as args to `bin/bench`
+    # Optionally: pass in two refs as args to `bin/bench_regression`
     # TODO: Consider checking across more revisions, to automatically find problems.
-    reports = benchmarking.benchmark_refs(ref1: ARGV[0], ref2: ARGV[1])
-    reports.each do |report|
-      puts report.run_comparison
-    end
+    benchmarking.benchmark_refs(ref1: ARGV[0], ref2: ARGV[1])
   end
 end
