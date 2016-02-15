@@ -10,15 +10,17 @@ require 'English'
 # bundle exec bin/bench_regression <ref1> <ref2>
 #   <ref1> defaults to the current branch
 #   <ref2> defaults to the master branch
-# bundle exec bin/bench_regression current # will run on the current branch
-# bundle exec bin/bench_regression revisions 792fb8a9053f8db3c562dae4f40907a582dd1720 master # every revision inclusive
-# bundle exec bin/bench_regression 792fb8a9053f8db3c562dae4f40907a582dd1720 master --repeat-count 2 --env CACHE_ON=off
+# bundle exec bin/bench_regression current                    # will run on the current branch
+# bundle exec bin/bench_regression revisions 792fb8a90 master # every revision inclusive
+# bundle exec bin/bench_regression           792fb8a90 master --repeat-count 2 --env CACHE_ON=off
+# bundle exec bin/bench_regression vendor
 ###########################
 
 class BenchRegression
   ROOT = Pathname File.expand_path(File.join(*['..', '..']), __FILE__)
   TMP_DIR_NAME = File.join('tmp', 'bench')
   TMP_DIR = File.join(ROOT, TMP_DIR_NAME)
+  E_TMP_DIR = Shellwords.shellescape(TMP_DIR)
   load ROOT.join('bin', 'bench')
 
   attr_reader :gem_require_paths, :gem_paths
@@ -67,7 +69,7 @@ class BenchRegression
   end
 
   def vendor_gem(gem_name)
-    directory_name = `bundle exec gem unpack benchmark-ips --target=#{Shellwords.shellescape(TMP_DIR)}`[/benchmark-ips.+\d/]
+    directory_name = `bundle exec gem unpack benchmark-ips --target=#{E_TMP_DIR}`[/benchmark-ips.+\d/]
     gem_paths << File.join(TMP_DIR, directory_name)
     gem_require_paths << File.join(TMP_DIR_NAME, directory_name, 'lib')
     housekeeping { remove_vendored_gems }
@@ -127,8 +129,8 @@ class BenchRegression
 
     def sh(cmd)
       puts cmd
-      system(cmd)
-      # run(cmd)
+      # system(cmd)
+      run(cmd)
       # env = {}
       # # out = STDOUT
       # pid = spawn(env, cmd)
@@ -226,17 +228,25 @@ class BenchRegression
   end
 
   def bundle(ref)
-    sh("rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet")
-    if $CHILD_STATUS
-      STDERR.puts "Bundle failed at: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
-      $CHILD_STATUS.success?
-    else
-      true
+    system("rm -f Gemfile.lock")
+    # This is absolutely critical for bundling to work
+    Bundler.with_clean_env do
+      system("bundle check ||
+        bundle install --local ||
+        bundle install ||
+        bundle update")
     end
+
+    # if $CHILD_STATUS
+    #   STDERR.puts "Bundle failed at: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+    #   $CHILD_STATUS.success?
+    # else
+    #   false
+    # end
   end
 
   def benchmark_tests(cmd, ref)
-    base = Shellwords.shellescape(TMP_DIR)
+    base = E_TMP_DIR
     # cmd.sub('bin/bench', 'tmp/revision_runner/bench')
     # bundle = Gem.bin('bunle'
     # Bundler.with_clean_env(&block)
@@ -251,8 +261,8 @@ class BenchRegression
     # method but doesn't depend on benchmark-ips
     options = {
       commit_hash: ref,
-      base: Shellwords.shellescape(TMP_DIR),
-      rubyopt: "-Ilib:#{gem_require_paths.join(':')}"
+      base: base,
+      rubyopt: Shellwords.shellescape("-Ilib:#{gem_require_paths.join(':')}")
     }
     BenchmarkDriver.parse_argv_and_run(ARGV.dup, options)
   end

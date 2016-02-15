@@ -9,11 +9,13 @@ require 'pathname'
 require 'optparse'
 require 'digest'
 require 'pathname'
+require 'shellwords'
 require 'logger'
 
 class BenchmarkDriver
   ROOT = Pathname File.expand_path(File.join('..', '..'), __FILE__)
   BASE = ENV.fetch('BASE') { ROOT.join('test', 'dummy') }
+  E_BASE = Shellwords.shellescape(BASE)
 
   def self.benchmark(options)
     self.new(options).run
@@ -52,7 +54,7 @@ class BenchmarkDriver
     @repeat_count = options[:repeat_count]
     @pattern      = options[:pattern]
     @commit_hash  = options.fetch(:commit_hash) { `git rev-parse --short HEAD`.chomp }
-    @base         = options.fetch(:base) { BASE }
+    @base         = options.fetch(:base) { E_BASE }
     @env          = Array(options[:env]).join(' ')
     @rubyopt       = options[:rubyopt] # TODO: rename
   end
@@ -60,7 +62,7 @@ class BenchmarkDriver
   def run
     files.each do |path|
       next if !@pattern.empty? && /#{@pattern.join('|')}/ !~ File.basename(path)
-      run_single(path)
+      run_single(Shellwords.shellescape(path))
     end
   end
 

@@ -145,9 +145,9 @@ module Benchmark
   end
 
   extend Benchmark::ActiveModelSerializers
-  begin
-    #   require 'benchmark/ips'
-    # rescue LoadError
-    extend Benchmark::ActiveModelSerializers::FakeIps
-  end
+  # begin
+  require 'benchmark/ips'
+  # rescue LoadError
+  #   extend Benchmark::ActiveModelSerializers::FakeIps
+  # end
 end
