@@ -108,7 +108,12 @@ class BenchRegression
 
     def checkout_ref(ref)
       `git checkout #{ref}`.chomp
-      # abort "Checkout failed: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+      if $CHILD_STATUS
+        STDERR.puts "Checkout failed: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+        $CHILD_STATUS.success?
+      else
+        true
+      end
     end
 
     def clean_head
@@ -122,48 +127,50 @@ class BenchRegression
 
     def sh(cmd)
       puts cmd
+      system(cmd)
+      # run(cmd)
       # env = {}
       # # out = STDOUT
       # pid = spawn(env, cmd)
       # Process.wait(pid)
-      pid = fork do
-        exec cmd
-      end
-      Process.waitpid2(pid)
+      # pid = fork do
+      #   exec cmd
+      # end
+      # Process.waitpid2(pid)
       # puts $CHILD_STATUS.exitstatus
     end
-    # require 'pty'
+    require 'pty'
     # should consider trapping SIGINT in here
-    # def run(cmd)
-    #   puts cmd
-    #   child_process = ''
-    #   result = ''
-    #   # http://stackoverflow.com/a/1162850
-    #   # stream output of subprocess
-    #   begin
-    #     PTY.spawn(cmd) do |stdin, _stdout, pid|
-    #       begin
-    #         # Do stuff with the output here. Just printing to show it works
-    #         stdin.each do |line|
-    #           print line
-    #           result << line
-    #         end
-    #         child_process = PTY.check(pid)
-    #       rescue Errno::EIO
-    #         puts 'Errno:EIO error, but this probably just means ' \
-    #               'that the process has finished giving output'
-    #       end
-    #     end
-    #   rescue PTY::ChildExited
-    #     puts 'The child process exited!'
-    #   end
-    #   unless child_process.success?
-    #     exitstatus = child_process.exitstatus
-    #     puts "FAILED: #{child_process.pid} exited with status #{exitstatus.inspect} due to failed command #{cmd}"
-    #     exit exitstatus || 1
-    #   end
-    #   result
-    # end
+    def run(cmd)
+      puts cmd
+      child_process = ''
+      result = ''
+      # http://stackoverflow.com/a/1162850
+      # stream output of subprocess
+      begin
+        PTY.spawn(cmd) do |stdin, _stdout, pid|
+          begin
+            # Do stuff with the output here. Just printing to show it works
+            stdin.each do |line|
+              print line
+              result << line
+            end
+            child_process = PTY.check(pid)
+          rescue Errno::EIO
+            puts 'Errno:EIO error, but this probably just means ' \
+                  'that the process has finished giving output'
+          end
+        end
+      rescue PTY::ChildExited
+        puts 'The child process exited!'
+      end
+      unless (child_process && child_process.success?)
+        exitstatus = child_process.exitstatus
+        puts "FAILED: #{child_process.pid} exited with status #{exitstatus.inspect} due to failed command #{cmd}"
+        exit exitstatus || 1
+      end
+      result
+    end
   end
   include RevisionMethods
 
@@ -214,13 +221,18 @@ class BenchRegression
 
   def run_benchmark(cmd, ref = nil)
     ref ||= current_revision
-    bundle(ref)
-    benchmark_tests(cmd, ref)
+    bundle(ref) &&
+      benchmark_tests(cmd, ref)
   end
 
   def bundle(ref)
     sh("rm -f Gemfile.lock; bundle check || bundle --local --quiet || bundle --quiet")
-    abort "Bundle failed at: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+    if $CHILD_STATUS
+      STDERR.puts "Bundle failed at: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+      $CHILD_STATUS.success?
+    else
+      true
+    end
   end
 
   def benchmark_tests(cmd, ref)
