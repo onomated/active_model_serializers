@@ -72,12 +72,12 @@ class DummyModel
 
   # Defaults to the downcased model name and updated_at
   def cache_key
-    attributes.fetch(:cache_key) { "#{self.class.name.downcase}/#{id}-#{updated_at.strftime("%Y%m%d%H%M%S%9N")}" }
+    attributes.fetch(:cache_key) { "#{self.class.name.downcase}/#{id}" }
   end
 
   # Defaults to the time the serializer file was modified.
   def updated_at
-    attributes.fetch(:updated_at) { File.mtime(__FILE__) }
+    @updated_at ||= attributes.fetch(:updated_at) { File.mtime(__FILE__) }
   end
 
   def read_attribute_for_serialization(key)
@@ -91,10 +91,6 @@ end
 
 class Comment < DummyModel
   attr_accessor :id, :body
-
-  def cache_key
-    "#{self.class.name.downcase}/#{id}"
-  end
 end
 
 class Author < DummyModel
@@ -103,10 +99,6 @@ end
 
 class Post < DummyModel
   attr_accessor :id, :title, :body, :comments, :blog, :author
-
-  def cache_key
-    'benchmarking::post/1-20151215212620000000000'
-  end
 end
 
 class Blog < DummyModel

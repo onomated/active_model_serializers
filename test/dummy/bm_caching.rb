@@ -55,7 +55,7 @@ class ApiAssertion
     @expected ||=
       {
         'post' =>  {
-          'id' =>  1,
+          'id' =>  1337,
           'title' =>  'New Post',
           'body' =>  'Body',
           'comments' => [
@@ -69,7 +69,7 @@ class ApiAssertion
             'name' =>  'Custom blog'
           },
           'author' =>  {
-            'id' =>  1,
+            'id' =>  42,
             'name' =>  'Joao Moura.'
           }
         }

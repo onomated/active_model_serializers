@@ -54,6 +54,14 @@ end
 
 require 'active_model_serializers'
 
+begin
+  require 'rack-mini-profiler'
+rescue LoadError # rubocop:disable Lint/HandleExceptions
+else
+  require 'flamegraph'
+  # just append ?pp=flamegraph
+end
+
 # Initialize app before any serializers are defined, for sanity's sake.
 # Otherwise, you have to manually set perform caching.
 #
@@ -91,4 +99,5 @@ Rails.application.initialize!
 ActiveSupport.on_load(:action_controller) do
   require_relative 'fixtures'
 end
+
 require_relative 'controllers'

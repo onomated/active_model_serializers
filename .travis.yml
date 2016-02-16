@@ -18,7 +18,7 @@ jdk:
 before_install:
   - '[ "$JRUBY_OPTS" != "" ] && export JRUBY_OPTS="--dev -Xcli.debug=true --debug"'
 
-install: bundle install --path=vendor/bundle --retry=3 --jobs=3
+install: bundle install --path=vendor/bundle --retry=3 --jobs=3 --without bench
 cache:
   directories:
     - vendor/bundle

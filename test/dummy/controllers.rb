@@ -1,9 +1,15 @@
 class PostController < ActionController::Base
   POST =
     begin
-      comment = Comment.new(id: 1, body: 'ZOMG A COMMENT')
-      author  = Author.new(id: 1, name: 'Joao Moura.')
-      Post.new(id: 1, title: 'New Post', blog: nil, body: 'Body', comments: [comment], author: author)
+      if ENV['BENCH_STRESS']
+        comments = (0..50).map do |i|
+          Comment.new(id: i, body: 'ZOMG A COMMENT')
+        end
+      else
+        comments = [Comment.new(id: 1, body: 'ZOMG A COMMENT')]
+      end
+      author = Author.new(id: 42, name: 'Joao Moura.')
+      Post.new(id: 1337, title: 'New Post', blog: nil, body: 'Body', comments: comments, author: author)
     end
 
   def render_with_caching_serializer
