@@ -23,70 +23,78 @@ class BenchRegression
   E_TMP_DIR = Shellwords.shellescape(TMP_DIR)
   load ROOT.join('bin', 'bench')
 
-  attr_reader :gem_require_paths, :gem_paths
-  attr_writer :vendor
+  attr_reader :source_stasher
 
   def initialize
-    @gem_require_paths = []
-    @gem_paths = []
-    refresh_temp_dir
-    @vendor = false
+    @source_stasher = SourceStasher.new
   end
 
-  def temp_dir_empty?
-    File.directory?(TMP_DIR) &&
-      Dir[File.join(TMP_DIR, '*')].none?
-  end
+  class SourceStasher
+    attr_reader :gem_require_paths, :gem_paths
+    attr_writer :vendor
 
-  def empty_temp_dir
-    return if @vendor
-    return if temp_dir_empty?
-    FileUtils.mkdir_p(TMP_DIR)
-    Dir[File.join(TMP_DIR, '*')].each do |file|
-      if File.directory?(file)
-        FileUtils.rm_rf(file)
-      else
-        FileUtils.rm(file)
+    def initialize
+      @gem_require_paths = []
+      @gem_paths = []
+      refresh_temp_dir
+      @vendor = false
+    end
+
+    def temp_dir_empty?
+      File.directory?(TMP_DIR) &&
+        Dir[File.join(TMP_DIR, '*')].none?
+    end
+
+    def empty_temp_dir
+      return if @vendor
+      return if temp_dir_empty?
+      FileUtils.mkdir_p(TMP_DIR)
+      Dir[File.join(TMP_DIR, '*')].each do |file|
+        if File.directory?(file)
+          FileUtils.rm_rf(file)
+        else
+          FileUtils.rm(file)
+        end
       end
     end
-  end
 
-  def fill_temp_dir
-    vendor_files(Dir[File.join(ROOT, 'test', 'dummy', '*.{rb,ru}')])
-    # vendor_file(File.join('bin', 'bench'))
-    housekeeping { empty_temp_dir }
-    vendor_gem('benchmark-ips')
-  end
-
-  def vendor_files(files)
-    files.each do |file|
-      vendor_file(file)
+    def fill_temp_dir
+      vendor_files(Dir[File.join(ROOT, 'test', 'dummy', '*.{rb,ru}')])
+      # vendor_file(File.join('bin', 'bench'))
+      housekeeping { empty_temp_dir }
+      vendor_gem('benchmark-ips')
     end
-  end
 
-  def vendor_file(file)
-    FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
-  end
+    def vendor_files(files)
+      files.each do |file|
+        vendor_file(file)
+      end
+    end
 
-  def vendor_gem(gem_name)
-    directory_name = `bundle exec gem unpack benchmark-ips --target=#{E_TMP_DIR}`[/benchmark-ips.+\d/]
-    gem_paths << File.join(TMP_DIR, directory_name)
-    gem_require_paths << File.join(TMP_DIR_NAME, directory_name, 'lib')
-    housekeeping { remove_vendored_gems }
-  end
+    def vendor_file(file)
+      FileUtils.cp(file, File.join(TMP_DIR, File.basename(file)))
+    end
 
-  def remove_vendored_gems
-    return if @vendor
-    FileUtils.rm_rf(*gem_paths)
-  end
+    def vendor_gem(gem_name)
+      directory_name = `bundle exec gem unpack benchmark-ips --target=#{E_TMP_DIR}`[/benchmark-ips.+\d/]
+      gem_paths << File.join(TMP_DIR, directory_name)
+      gem_require_paths << File.join(TMP_DIR_NAME, directory_name, 'lib')
+      housekeeping { remove_vendored_gems }
+    end
 
-  def refresh_temp_dir
-    empty_temp_dir
-    fill_temp_dir
-  end
+    def remove_vendored_gems
+      return if @vendor
+      FileUtils.rm_rf(*gem_paths)
+    end
 
-  def housekeeping
-    at_exit { yield }
+    def refresh_temp_dir
+      empty_temp_dir
+      fill_temp_dir
+    end
+
+    def housekeeping
+      at_exit { yield }
+    end
   end
 
   module RevisionMethods
@@ -121,11 +129,8 @@ class BenchRegression
     def clean_head
       system('git reset --hard --quiet')
     end
-
-    # def capture(cmd)
-    #   puts cmd
-    #   `#{cmd}`.chomp
-    # end
+  end
+  module ShellMethods
 
     def sh(cmd)
       puts cmd
@@ -141,6 +146,7 @@ class BenchRegression
       # Process.waitpid2(pid)
       # puts $CHILD_STATUS.exitstatus
     end
+
     require 'pty'
     # should consider trapping SIGINT in here
     def run(cmd)
@@ -173,7 +179,26 @@ class BenchRegression
       end
       result
     end
+
+    def bundle(ref)
+      system("rm -f Gemfile.lock")
+      # This is absolutely critical for bundling to work
+      Bundler.with_clean_env do
+        system("bundle check ||
+          bundle install --local ||
+          bundle install ||
+          bundle update")
+      end
+
+      # if $CHILD_STATUS
+      #   STDERR.puts "Bundle failed at: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
+      #   $CHILD_STATUS.success?
+      # else
+      #   false
+      # end
+    end
   end
+  include ShellMethods
   include RevisionMethods
 
   def benchmark_refs(ref1: nil, ref2: nil, cmd:)
@@ -227,24 +252,6 @@ class BenchRegression
       benchmark_tests(cmd, ref)
   end
 
-  def bundle(ref)
-    system("rm -f Gemfile.lock")
-    # This is absolutely critical for bundling to work
-    Bundler.with_clean_env do
-      system("bundle check ||
-        bundle install --local ||
-        bundle install ||
-        bundle update")
-    end
-
-    # if $CHILD_STATUS
-    #   STDERR.puts "Bundle failed at: #{ref}, #{$CHILD_STATUS.exitstatus}" unless $CHILD_STATUS.success?
-    #   $CHILD_STATUS.success?
-    # else
-    #   false
-    # end
-  end
-
   def benchmark_tests(cmd, ref)
     base = E_TMP_DIR
     # cmd.sub('bin/bench', 'tmp/revision_runner/bench')
@@ -262,7 +269,7 @@ class BenchRegression
     options = {
       commit_hash: ref,
       base: base,
-      rubyopt: Shellwords.shellescape("-Ilib:#{gem_require_paths.join(':')}")
+      rubyopt: Shellwords.shellescape("-Ilib:#{source_stasher.gem_require_paths.join(':')}")
     }
     BenchmarkDriver.parse_argv_and_run(ARGV.dup, options)
   end
@@ -293,7 +300,7 @@ if $PROGRAM_NAME == __FILE__
   when 'vendor'
     # Just prevents vendored files from being cleaned up
     # at exit. (They are vendored at initialize.)
-    benchmarking.vendor = true
+    benchmarking.source_stasher.vendor = true
   else
     # Default: Compare current_branch to master
     # Optionally: pass in two refs as args to `bin/bench_regression`
