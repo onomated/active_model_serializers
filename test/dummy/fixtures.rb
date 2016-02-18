@@ -51,56 +51,107 @@ class CachingPostSerializer < PostSerializer
 end
 Rails.configuration.serializers << CachingPostSerializer
 
-# ActiveModelSerializers::Model is a convenient
-# serializable class to inherit from when making
-# serializable non-activerecord objects.
-class DummyModel
-  include ActiveModel::Model
-  include ActiveModel::Serializers::JSON
+if ENV['ENABLE_ACTIVE_RECORD'] == 'true'
+  require 'active_record'
 
-  attr_reader :attributes
+  ActiveRecord::Base.establish_connection(adapter: 'sqlite3', database: ':memory:')
+  ActiveRecord::Schema.define do
+    self.verbose = false
 
-  def initialize(attributes = {})
-    @attributes = attributes
-    super
-  end
-
-  # Defaults to the downcased model name.
-  def id
-    attributes.fetch(:id) { self.class.name.downcase }
-  end
-
-  # Defaults to the downcased model name and updated_at
-  def cache_key
-    attributes.fetch(:cache_key) { "#{self.class.name.downcase}/#{id}" }
-  end
-
-  # Defaults to the time the serializer file was modified.
-  def updated_at
-    @updated_at ||= attributes.fetch(:updated_at) { File.mtime(__FILE__) }
-  end
-
-  def read_attribute_for_serialization(key)
-    if key == :id || key == 'id'
-      attributes.fetch(key) { id }
-    else
-      attributes[key]
+    create_table :blogs, force: true do |t|
+      t.string :name
+      t.timestamps null: false
+    end
+    create_table :authors, force: true do |t|
+      t.string :name
+      t.timestamps null: false
+    end
+    create_table :posts, force: true do |t|
+      t.string :title
+      t.text :body
+      t.references :author
+      t.references :blog
+      t.timestamps null: false
+    end
+    create_table :comments, force: true do |t|
+      t.text :body
+      t.references :author
+      t.references :post
+      t.timestamps null: false
     end
   end
-end
 
-class Comment < DummyModel
-  attr_accessor :id, :body
-end
+  class Comment < ActiveRecord::Base
+    belongs_to :author
+    belongs_to :post
+  end
 
-class Author < DummyModel
-  attr_accessor :id, :name, :posts
-end
+  class Author < ActiveRecord::Base
+    has_many :posts
+    has_many :comments
+  end
 
-class Post < DummyModel
-  attr_accessor :id, :title, :body, :comments, :blog, :author
-end
+  class Post < ActiveRecord::Base
+    has_many :comments
+    belongs_to :author
+    belongs_to :blog
+  end
 
-class Blog < DummyModel
-  attr_accessor :id, :name
+  class Blog < ActiveRecord::Base
+    has_many :posts
+  end
+else
+  # ActiveModelSerializers::Model is a convenient
+  # serializable class to inherit from when making
+  # serializable non-activerecord objects.
+  class DummyModel
+    include ActiveModel::Model
+    include ActiveModel::Serializers::JSON
+
+    attr_reader :attributes
+
+    def initialize(attributes = {})
+      @attributes = attributes
+      super
+    end
+
+    # Defaults to the downcased model name.
+    def id
+      attributes.fetch(:id) { self.class.name.downcase }
+    end
+
+    # Defaults to the downcased model name and updated_at
+    def cache_key
+      attributes.fetch(:cache_key) { "#{self.class.name.downcase}/#{id}" }
+    end
+
+    # Defaults to the time the serializer file was modified.
+    def updated_at
+      @updated_at ||= attributes.fetch(:updated_at) { File.mtime(__FILE__) }
+    end
+
+    def read_attribute_for_serialization(key)
+      if key == :id || key == 'id'
+        attributes.fetch(key) { id }
+      else
+        attributes[key]
+      end
+    end
+  end
+
+  class Comment < DummyModel
+    attr_accessor :id, :body
+  end
+
+  class Author < DummyModel
+    attr_accessor :id, :name, :posts
+  end
+
+  class Post < DummyModel
+    attr_accessor :id, :title, :body, :comments, :blog, :author
+  end
+
+  class Blog < DummyModel
+    attr_accessor :id, :name
+  end
 end
