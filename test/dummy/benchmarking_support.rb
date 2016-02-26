@@ -25,7 +25,8 @@ module Benchmark
           time, warmup, = args
         end
 
-        sync, $stdout.sync = $stdout.sync, true
+        sync = $stdout.sync
+        $stdout.sync = true
 
         job = Class.new do
           attr_reader :label, :result
