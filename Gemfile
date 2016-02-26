@@ -39,7 +39,7 @@ gem 'tzinfo-data', platforms: (@windows_platforms + [:jruby])
 # Usage:
 #   bundle exec rake -f tasklib/perf.rake -vT
 group :bench, :development do
-  gem 'derailed'
+  gem 'derailed', platforms: [:ruby_21, :ruby_22, :ruby_23]
   gem 'stackprof'
   gem 'rack-mini-profiler', require: false
   gem 'flamegraph'
