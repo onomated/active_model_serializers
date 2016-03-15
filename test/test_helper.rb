@@ -26,19 +26,26 @@ begin
   require 'minitest'
 rescue LoadError
   # Minitest 4
-  require 'minitest/autorun'
+  require 'minitest/unit'
+  require 'minitest/unit'
+  require 'minitest/spec'
+  require 'minitest/mock'
   $minitest_version = 4
   # https://github.com/seattlerb/minitest/blob/644a52fd0/lib/minitest/autorun.rb
   # https://github.com/seattlerb/minitest/blob/644a52fd0/lib/minitest/unit.rb#L768-L787
   # Ensure backward compatibility with Minitest 4
   Minitest = MiniTest unless defined?(Minitest)
   Minitest::Test = MiniTest::Unit::TestCase
+  minitest_run = ->(argv) { MiniTest::Unit.new.run(argv) }
 else
   # Minitest 5
-  require 'minitest/autorun'
+  require 'minitest'
+  require 'minitest/spec'
+  require 'minitest/mock'
   $minitest_version = 5
   # https://github.com/seattlerb/minitest/blob/e21fdda9d/lib/minitest/autorun.rb
   # https://github.com/seattlerb/minitest/blob/e21fdda9d/lib/minitest.rb#L45-L59
+  minitest_run = ->(argv) { Minitest.run(argv) }
 end
 require 'minitest/reporters'
 Minitest::Reporters.use!
@@ -59,3 +66,8 @@ ActiveSupport.on_load(:action_controller) do
   $action_controller_logger = ActiveModelSerializers.logger
   ActiveModelSerializers.logger = Logger.new(IO::NULL)
 end
+
+END {
+  code = minitest_run.call(ARGV)
+  exit code
+}
