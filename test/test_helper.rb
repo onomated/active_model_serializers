@@ -1,3 +1,36 @@
+require 'tempfile'
+require 'fileutils'
+
+@stderr_file = Tempfile.new('app.stderr')
+@app_root ||= Dir.pwd
+@output_dir = File.join(@app_root, 'tmp')
+FileUtils.mkdir_p(@output_dir)
+@ignore_dirs = [
+  File.join(@app_root, '.bundle'),
+  File.join(@app_root, 'bundle'),
+  File.join(@app_root, 'vendor')
+]
+@output = STDOUT
+$VERBOSE = true
+$stderr.reopen(@stderr_file.path)
+at_exit do
+  @stderr_file.rewind
+  lines = @stderr_file.read.split("\n")
+  @stderr_file.close!
+  $stderr.reopen(STDERR)
+
+  app_warnings, other_warnings = lines.partition do |line|
+    line.include?(@app_root) && @ignore_dirs.none? { |ignore_dir| line.include?(ignore_dir) }
+  end
+  @output.puts
+  @output.puts
+  @output.puts 'app warnings:'
+  @output.puts app_warnings
+  @output.puts
+  @output.puts 'other warnings:'
+  @output.puts other_warnings
+  @output.puts
+end
 require 'bundler/setup'
 
 begin
