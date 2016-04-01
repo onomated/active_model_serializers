@@ -161,6 +161,69 @@ module ActiveModelSerializers
       refute_includes(base.keys, :special_attribute)
     end
 
+    def test_a_serializer_rendered_by_two_adapter_returns_differently_cached_attributes
+      model = Class.new(ActiveModelSerializers::Model) do
+        attr_accessor :id, :status, :resource, :started_at, :ended_at, :updated_at, :created_at
+      end
+      Object.const_set(:Alert, model)
+      serializer = Class.new(ActiveModel::Serializer) do
+        cache
+        attributes :id, :status, :resource, :started_at, :ended_at, :updated_at, :created_at
+      end
+      Object.const_set(:AlertSerializer, serializer)
+
+      alert = Alert.new(
+        id: 1,
+        status: "fail",
+        resource: "resource-1",
+        started_at: Time.new(2016, 3, 31, 21, 36, 35, 0),
+        ended_at: nil,
+        updated_at: Time.new(2016, 3, 31, 21, 27, 35, 0),
+        created_at: Time.new(2016, 3, 31, 21, 37, 35, 0)
+      )
+
+
+      serializable_alert = serializable(alert, serializer: AlertSerializer, adapter: :attributes)
+      attributes_serialization1 = serializable_alert.as_json
+      assert_equal alert.status, attributes_serialization1.fetch(:status)
+
+      serializable_alert = serializable(alert, serializer: AlertSerializer, adapter: :attributes)
+      attributes_serialization2 = serializable_alert.as_json
+      assert_equal attributes_serialization1, attributes_serialization2
+
+      attributes_cache_key = CachedSerializer.new(serializable_alert.adapter.serializer).cache_key
+      assert_equal attributes_serialization1, cache_store.fetch(attributes_cache_key)
+
+      serializable_alert = serializable(alert, serializer: AlertSerializer, adapter: :json_api)
+      jsonapi_cache_key = CachedSerializer.new(serializable_alert.adapter.serializer).cache_key
+      refute_equal attributes_cache_key, jsonapi_cache_key
+      jsonapi_serialization1 = serializable_alert.as_json
+      assert_equal alert.status, jsonapi_serialization1.fetch(:data).fetch(:attributes).fetch(:status)
+
+      serializable_alert = serializable(alert, serializer: AlertSerializer, adapter: :json_api)
+      jsonapi_serialization2 = serializable_alert.as_json
+      assert_equal jsonapi_serialization1, jsonapi_serialization2
+
+      cached_serialization = cache_store.fetch(jsonapi_cache_key)
+      assert_equal jsonapi_serialization1, cached_serialization
+
+      expected_jsonapi_serialization = {
+        id: "1",
+         type: "alerts",
+         attributes: {
+           created_at: 'Thu, 31 Mar 2016 21:37:35 UTC +00:00',
+           status: "fail",
+           resource: "resource-1",
+           updated_at: 'Thu,  31 Mar 2016 21:37:35 UTC +00:00',
+           started_at: 'Thu, 31 Mar 2016 21:36:35 UTC +00:00',
+           ended_at: nil}
+      }
+      assert_equal expected_jsonapi_serialization, jsonapi_serialization1
+    ensure
+      Object.send(:remove_const, :Alert)
+      Object.send(:remove_const, :AlertSerializer)
+    end
+
     def test_uses_file_digest_in_cache_key
       render_object_with_cache(@blog)
       assert_equal(@blog_serializer.attributes, cache_store.fetch(@blog.cache_key_with_digest))
