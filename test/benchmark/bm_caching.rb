@@ -35,6 +35,14 @@ class ApiAssertion
     get("/non_caching/#{on_off}")
   end
 
+  def debug(msg = '')
+    if block_given? && ENV['DEBUG'] =~ /\Atrue|on|0\z/i
+      STDERR.puts yield
+    else
+      STDERR.puts msg
+    end
+  end
+
   private
 
   def assert_responses(caching, non_caching)
@@ -85,33 +93,47 @@ class ApiAssertion
       STDERR.puts message unless ENV['SUMMARIZE']
     end
   end
-
-  def debug(msg = '')
-    if block_given? && ENV['DEBUG'] =~ /\Atrue|on|0\z/i
-      STDERR.puts yield
-    else
-      STDERR.puts msg
-    end
-  end
 end
 assertion = ApiAssertion.new
 assertion.valid?
-# STDERR.puts assertion.get_status
+assertion.debug { assertion.get_status }
 
 time = 10
+require 'ruby-prof'
+# GC.enable_stats
+prof_target = 'MEMORY' # ARGV[0]
+RubyProf.measure_mode = RubyProf.const_get(prof_target)
 {
   'caching on: caching serializers: gc off' => { disable_gc: true, send: [:get_caching, 'on'] },
-  # 'caching on: caching serializers: gc on' => { disable_gc: false, send: [:get_caching, 'on'] },
-  'caching off: caching serializers: gc off' => { disable_gc: true, send: [:get_caching, 'off'] },
-  # 'caching off: caching serializers: gc on' => { disable_gc: false, send: [:get_caching, 'off'] },
   'caching on: non-caching serializers: gc off' => { disable_gc: true, send: [:get_non_caching, 'on'] },
-  # 'caching on: non-caching serializers: gc on' => { disable_gc: false, send: [:get_non_caching, 'on'] },
+  'caching off: caching serializers: gc off' => { disable_gc: true, send: [:get_caching, 'off'] },
   'caching off: non-caching serializers: gc off' => { disable_gc: true, send: [:get_non_caching, 'off'] }
-  # 'caching off: non-caching serializers: gc on' => { disable_gc: false, send: [:get_non_caching, 'off'] }
 }.each do |label, options|
   assertion.clear
-  Benchmark.ams(label, time: time, disable_gc: options[:disable_gc]) do
-    assertion.send(*options[:send])
-  end
-  # STDERR.puts assertion.get_status(options[:send][-1])
+  # result = RubyProf.profile do
+    Benchmark.ams(label, time: time, disable_gc: options[:disable_gc]) do
+      assertion.send(*options[:send])
+    end
+  # end
+  # min_percent = 5
+  # print = ->(printer, name) do
+  #   io = File.open("#{prof_target}_#{name}", "w+")
+  #     printer.print(io)
+  #   # end
+  # end
+  # # Let me first explain what the columns in the report mean.
+  #   # %self The percentage of the time spent only in this function. See the definition of self.
+  #   # total The total time spent in this function, including the execution time of functions that it calls.
+  #   # self The time spent only in this function, excluding the execution time of functions that it calls.
+  #   # wait The time spent waiting for other threads. This will always be zero for single-threaded apps. I’ll sometimes omit this column from profiles included in this book to save some space.
+  #   # child The time spent in functions that are called from the current function. calls The total number of calls to this function.
+  #   # The flat report is sorted by self time. So functions at the top of the report are the ones where our program spends most of the time.
+  # print.(RubyProf::FlatPrinter.new(result), "_optimized_profile.txt")
+  # print.(RubyProf::CallTreePrinter.new(result), "_callgrind.out.memprof_app")
+  # print.(RubyProf::GraphPrinter.new(result), "_graph_profile.txt")
+  # print.(RubyProf::GraphHtmlPrinter.new(result), "_graph_profile.html")
+  # # % of total time (% of caller time) Function [# of calls, # of calls total]
+  # print.(RubyProf::CallStackPrinter.new(result), "_call_stack_profile.html")
+  #
+  assertion.debug { assertion.get_status(options[:send][-1]) }
 end
