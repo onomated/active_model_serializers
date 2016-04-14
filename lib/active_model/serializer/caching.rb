@@ -147,10 +147,12 @@ module ActiveModel
         end
 
         def cache_enabled?
+          return false
           perform_caching? && cache_store && !_cache_only && !_cache_except
         end
 
         def fragment_cache_enabled?
+          return false
           perform_caching? && cache_store &&
             (_cache_only && !_cache_except || !_cache_only && _cache_except)
         end
@@ -158,6 +160,7 @@ module ActiveModel
         # Read cache from cache_store
         # @return [Hash]
         def cache_read_multi(collection_serializer, adapter_instance, include_tree)
+          return {}
           return {} if ActiveModelSerializers.config.cache_store.blank?
 
           keys = object_cache_keys(collection_serializer, adapter_instance, include_tree)
@@ -210,15 +213,16 @@ module ActiveModel
       end
 
       def cache_check(adapter_instance)
-        if self.class.cache_enabled?
-          self.class.cache_store.fetch(cache_key(adapter_instance), self.class._cache_options) do
-            yield
-          end
-        elsif self.class.fragment_cache_enabled?
-          fetch_fragment_cache(adapter_instance)
-        else
-          yield
-        end
+        yield
+        # if self.class.cache_enabled?
+        #   self.class.cache_store.fetch(cache_key(adapter_instance), self.class._cache_options) do
+        #     yield
+        #   end
+        # elsif self.class.fragment_cache_enabled?
+        #   fetch_fragment_cache(adapter_instance)
+        # else
+        #   yield
+        # end
       end
 
       # 1. Create a CachedSerializer and NonCachedSerializer from the serializer class

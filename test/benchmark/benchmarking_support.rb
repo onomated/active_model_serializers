@@ -14,7 +14,7 @@ module Benchmark
       end
     end
     module FakeIps
-      ITERATIONS = 500
+      ITERATIONS = 50
 
       # rubocop:disable Metrics/AbcSize
       def ips(*args)
@@ -142,8 +142,8 @@ module Benchmark
   end
 
 
-  require 'benchmark/ips'
-  # extend Benchmark::ActiveModelSerializers::FakeIps
+  # require 'benchmark/ips'
+  extend Benchmark::ActiveModelSerializers::FakeIps
   extend Benchmark::ActiveModelSerializers
 end
 # puts "memory usage after large string creation %d MB" %
