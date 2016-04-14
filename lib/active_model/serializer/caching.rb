@@ -151,7 +151,6 @@ module ActiveModel
         end
 
         def fragment_cache_enabled?
-          return false
           perform_caching? && cache_store &&
             (_cache_only && !_cache_except || !_cache_only && _cache_except)
         end
