@@ -210,12 +210,12 @@ module ActiveModel
       end
 
       def cache_check(adapter_instance)
-        if self.class.cache_enabled? || self.class.fragment_cache_enabled?
+        if self.class.cache_enabled?
           self.class.cache_store.fetch(cache_key(adapter_instance), self.class._cache_options) do
             yield
           end
-        # elsif self.class.fragment_cache_enabled?
-        #   fetch_fragment_cache(adapter_instance)
+        elsif self.class.fragment_cache_enabled?
+          fetch_fragment_cache(adapter_instance)
         else
           yield
         end
