@@ -210,16 +210,15 @@ module ActiveModel
       end
 
       def cache_check(adapter_instance)
-        yield
-        # if self.class.cache_enabled?
-        #   self.class.cache_store.fetch(cache_key(adapter_instance), self.class._cache_options) do
-        #     yield
-        #   end
+        if self.class.cache_enabled?
+          self.class.cache_store.fetch(cache_key(adapter_instance), self.class._cache_options) do
+            yield
+          end
         # elsif self.class.fragment_cache_enabled?
         #   fetch_fragment_cache(adapter_instance)
-        # else
-        #   yield
-        # end
+        else
+          yield
+        end
       end
 
       # 1. Create a CachedSerializer and NonCachedSerializer from the serializer class
