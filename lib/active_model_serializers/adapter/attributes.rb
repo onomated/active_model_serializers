@@ -61,13 +61,13 @@ module ActiveModelSerializers
       end
 
       def resource_object_for(options)
-        # if serializer.class.cache_enabled?
-        #   @cached_attributes.fetch(serializer.cache_key(self)) do
-        #     serializer.cached_fields(options[:fields], self)
-        #   end
-        # else
+        if serializer.class.cache_enabled?
+          @cached_attributes.fetch(serializer.cache_key(self)) do
+            serializer.cached_fields(options[:fields], self)
+          end
+        else
           serializer.cached_fields(options[:fields], self)
-        # end
+        end
       end
     end
   end
