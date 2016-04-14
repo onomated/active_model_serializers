@@ -158,7 +158,6 @@ module ActiveModel
         # Read cache from cache_store
         # @return [Hash]
         def cache_read_multi(collection_serializer, adapter_instance, include_tree)
-          return {}
           return {} if ActiveModelSerializers.config.cache_store.blank?
 
           keys = object_cache_keys(collection_serializer, adapter_instance, include_tree)
