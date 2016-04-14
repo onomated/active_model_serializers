@@ -55,9 +55,9 @@ module ActiveModelSerializers
 
       # Set @cached_attributes
       def cache_attributes
-        # return if @cached_attributes.present?
-        #
-        # @cached_attributes = ActiveModel::Serializer.cache_read_multi(serializer, self, @include_tree)
+        return if @cached_attributes.present?
+
+        @cached_attributes = ActiveModel::Serializer.cache_read_multi(serializer, self, @include_tree)
       end
 
       def resource_object_for(options)
