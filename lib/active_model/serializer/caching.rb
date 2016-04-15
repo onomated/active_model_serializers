@@ -17,8 +17,7 @@ module ActiveModel
           #    compress
           #    force
           #    race_condition_ttl
-          #  Passed to ::_cache as
-          #    serializer._cache.fetch(cache_key, @klass._cache_options)
+          #  Passed as second argument to serializer.cache_store.fetch(cache_key, self.class._cache_options)
           serializer.class_attribute :_cache_digest # @api private : Generated
         end
       end
@@ -208,8 +207,12 @@ module ActiveModel
 
       def cache_check(adapter_instance)
         if self.class.cache_enabled?
-          self.class.cache_store.fetch(cache_key(adapter_instance), self.class._cache_options) do
-            yield
+          cached_attributes = instance_options[:cached_attributes] || {}
+          key = cache_key(adapter_instance)
+          cached_attributes.fetch(key) do
+            self.class.cache_store.fetch(key, self.class._cache_options) do
+              yield
+            end
           end
         elsif self.class.fragment_cache_enabled?
           fetch_fragment_cache(adapter_instance)
