@@ -150,13 +150,7 @@ module ActiveModel
     #     # Second level and higher order associations work as well:
     #     serializer.as_json(include: { posts: { include: { comments: { only: :body } }, only: :title } })
     def serializable_hash(options = nil)
-      adapter_opts ||= {}
-      adapter_opts = { include: '*', adapter: :attributes }.merge!(adapter_opts)
-      adapter = ActiveModelSerializers::Adapter.create(self, adapter_opts)
-      adapter.serializable_hash(adapter_opts)
-    end
-
-    def serialize(options)
+      options ||= {}
       adapter_instance = options[:adapter_instance]
       include_tree = ActiveModel::Serializer::IncludeTree.from_include_args(options[:include] || '*')
       cached_attributes(options[:fields], adapter_instance)
@@ -177,10 +171,10 @@ module ActiveModel
             if association_serializer.respond_to?(:each)
               association_options[:cached_attributes] ||= ActiveModel::Serializer.cache_read_multi(association_serializer, adapter_instance, association_include_tree)
               association_serializer.map do |serializer|
-                serializer.serialize(association_options)
+                serializer.serializable_hash(association_options)
               end
             else
-              association_serializer.serialize(association_options)
+              association_serializer.serializable_hash(association_options)
             end
           else
             nil
