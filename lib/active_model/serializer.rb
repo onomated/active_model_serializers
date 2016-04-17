@@ -151,10 +151,9 @@ module ActiveModel
     #     serializer.as_json(include: { posts: { include: { comments: { only: :body } }, only: :title } })
     def serializable_hash(options = nil)
       options ||= {}
-      adapter_instance = options[:adapter_instance]
       options[:include] = ActiveModel::Serializer::IncludeTree.from_include_args(options[:include] || '*')
-      cached_attributes(options[:fields], adapter_instance)
-        .merge(cached_relationships(options[:include], adapter_instance))
+      cached_attributes(options[:fields], options[:adapter_instance])
+        .merge(cached_relationships(options[:include], options[:adapter_instance]))
     end
     alias to_hash serializable_hash
     alias to_h serializable_hash
