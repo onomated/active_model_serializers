@@ -184,7 +184,6 @@ module ActiveModel
       relationships
     end
 
-
     alias to_hash serializable_hash
     alias to_h serializable_hash
 
@@ -214,6 +213,7 @@ module ActiveModel
         object.read_attribute_for_serialization(attr)
       end
     end
+
     protected
 
     attr_accessor :instance_options
