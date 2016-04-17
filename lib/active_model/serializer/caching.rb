@@ -18,7 +18,7 @@ module ActiveModel
           #    force
           #    race_condition_ttl
           #  Passed as second argument to serializer.cache_store.fetch(cache_key, self.class._cache_options)
-          serializer.class_attribute :_cache_digest # @api private : Generated
+          serializer.class_attribute :_cache_digest_file_path # @api private : Derived at inheritance
         end
       end
 
@@ -41,7 +41,12 @@ module ActiveModel
         def inherited(base)
           super
           caller_line = caller[1]
-          base._cache_digest = digest_caller_file(caller_line)
+          base._cache_digest_file_path = caller_line
+        end
+
+        def _cache_digest
+          return @_cache_digest if defined?(@_cache_digest)
+          @_cache_digest = digest_caller_file(_cache_digest_file_path)
         end
 
         # Hashes contents of file for +_cache_digest+
