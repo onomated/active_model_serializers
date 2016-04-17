@@ -156,8 +156,9 @@ module ActiveModel
       adapter.serializable_hash(adapter_opts)
     end
 
-    def serialize(options, include_tree)
+    def serialize(options)
       adapter_instance = options[:adapter_instance]
+      include_tree = ActiveModel::Serializer::IncludeTree.from_include_args(options[:include] || '*')
       cached_attributes(options[:fields], adapter_instance)
         .merge(cached_relationships(adapter_instance, include_tree))
     end
@@ -176,10 +177,10 @@ module ActiveModel
             if association_serializer.respond_to?(:each)
               association_options[:cached_attributes] ||= ActiveModel::Serializer.cache_read_multi(association_serializer, adapter_instance, association_include_tree)
               association_serializer.map do |serializer|
-                serializer.serialize(association_options, association_include_tree)
+                serializer.serialize(association_options)
               end
             else
-              association_serializer.serialize(association_options, association_include_tree)
+              association_serializer.serialize(association_options)
             end
           else
             nil

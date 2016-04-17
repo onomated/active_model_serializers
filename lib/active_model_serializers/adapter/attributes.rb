@@ -12,10 +12,10 @@ module ActiveModelSerializers
 
         if serializer.respond_to?(:each)
           serializer.map do |element|
-            element.serialize(options, @include_tree)
+            element.serialize(options)
           end
         else
-          serializer.serialize(options, @include_tree)
+          serializer.serialize(options)
         end
       end
 
