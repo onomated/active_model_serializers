@@ -13,6 +13,7 @@ require 'active_model/serializer/lint'
 require 'active_model/serializer/links'
 require 'active_model/serializer/meta'
 require 'active_model/serializer/type'
+require 'active_model/serializer/serializable_hash'
 
 # ActiveModel::Serializer is an abstract class that is
 # reified when subclassed to decorate a resource.
@@ -152,8 +153,7 @@ module ActiveModel
     def serializable_hash(options = nil)
       options ||= {}
       options[:include] = ActiveModel::Serializer::IncludeTree.from_include_args(options[:include] || '*')
-      cached_attributes(options[:fields], options[:adapter_instance])
-        .merge(cached_relationships(options[:include], options[:adapter_instance]))
+      ActiveModel::Serializer::SerializableHash.new(self).serializable_hash(options)
     end
     alias to_hash serializable_hash
     alias to_h serializable_hash
