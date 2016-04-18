@@ -479,8 +479,8 @@ module ActiveModelSerializers
       model.attributes[:cache_key] = 'potatoe'
 
       expected_serialization = {
-        id: 55, name: "Parent Model", title: "Cached Parent",
-        child: {id: 13, name: "Child Model", body: "Child Body"}
+        id: 55, name: 'Parent Model', title: 'Cached Parent',
+        child: { id: 13, name: 'Child Model', body: 'Child Body' }
       }
       assert_equal('potatoe', model.cache_key)
       assert_equal(expected_serialization, ParentSerializer.new(model).as_json)

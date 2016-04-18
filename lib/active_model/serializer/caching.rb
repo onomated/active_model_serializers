@@ -38,17 +38,8 @@ module ActiveModel
       /x
 
       def cache_check(adapter_instance)
-        if self.class.cache_enabled?
-          cached_attributes = instance_options[:cached_attributes] || {}
-          key = cache_key(adapter_instance.cached_name)
-          cached_attributes.fetch(key) do
-            self.class.cache_store.fetch(key, self.class._cache_options) do
-              yield
-            end
-          end
-        elsif self.class.fragment_cache_enabled?
-          fetch_fragment_cache(adapter_instance)
-        else
+        cached_attributes = instance_options[:cached_attributes] || {}
+        self.class.cached(self, cached_attributes, adapter_instance) do
           yield
         end
       end
@@ -288,6 +279,21 @@ module ActiveModel
           return {} if keys.blank?
 
           ActiveModelSerializers.config.cache_store.read_multi(*keys)
+        end
+
+        def cached(serializer, cached_attributes, adapter_instance)
+          if cache_enabled?
+            key = serializer.cache_key(adapter_instance.cached_name)
+            cached_attributes.fetch(key) do
+              cache_store.fetch(key, _cache_options) do
+                yield
+              end
+            end
+          elsif fragment_cache_enabled?
+            serializer.fetch_fragment_cache(adapter_instance)
+          else
+            yield
+          end
         end
 
         # Find all cache_key for the collection_serializer
