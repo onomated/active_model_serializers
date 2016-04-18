@@ -163,8 +163,9 @@ module ActiveModel
         # @return [Hash]
         def cache_read_multi(collection_serializer, adapter_instance, include_tree)
           return {} if ActiveModelSerializers.config.cache_store.blank?
+          adapter_cached_name = adapter_instance.respond_to?(:cached_name) ? adapter_instance.cached_name : adapter_instance
 
-          keys = object_cache_keys(collection_serializer, adapter_instance, include_tree)
+          keys = object_cache_keys(collection_serializer, adapter_cached_name, include_tree)
 
           return {} if keys.blank?
 
@@ -176,8 +177,7 @@ module ActiveModel
         # @param adapter_instance [ActiveModelSerializers::Adapter::Base]
         # @param include_tree [ActiveModel::Serializer::IncludeTree]
         # @return [Array] all cache_key of collection_serializer
-        def object_cache_keys(collection_serializer, adapter_instance, include_tree)
-          adapter_cached_name = adapter_instance.respond_to?(:cached_name) ? adapter_instance.cached_name : adapter_instance
+        def object_cache_keys(collection_serializer, adapter_cached_name, include_tree)
           cache_keys = []
 
           collection_serializer.each do |serializer|

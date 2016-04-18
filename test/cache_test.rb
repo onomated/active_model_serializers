@@ -288,7 +288,7 @@ module ActiveModelSerializers
       serializable = ActiveModelSerializers::SerializableResource.new([@comment, @comment])
       include_tree = ActiveModel::Serializer::IncludeTree.from_include_args('*')
 
-      actual = ActiveModel::Serializer.object_cache_keys(serializable.adapter.serializer, serializable.adapter, include_tree)
+      actual = ActiveModel::Serializer.object_cache_keys(serializable.adapter.serializer, serializable.adapter.cached_name, include_tree)
 
       assert_equal 3, actual.size
       assert actual.any? { |key| key == "comment/1/#{serializable.adapter.cached_name}" }
@@ -302,17 +302,17 @@ module ActiveModelSerializers
       Timecop.freeze(Time.current) do
         render_object_with_cache(@comment)
 
-        attributes = Adapter::Attributes.new(serializer)
+        attributes_adapter = Adapter::Attributes.new(serializer)
         include_tree = ActiveModel::Serializer::IncludeTree.from_include_args('*')
-        cached_attributes = ActiveModel::Serializer.cache_read_multi(serializer, attributes, include_tree)
+        cached_attributes = ActiveModel::Serializer.cache_read_multi(serializer, attributes_adapter.cached_name, include_tree)
 
-        assert_equal cached_attributes["#{@comment.cache_key}/#{attributes.cached_name}"], Comment.new(id: 1, body: 'ZOMG A COMMENT').attributes
-        assert_equal cached_attributes["#{@comment.post.cache_key}/#{attributes.cached_name}"], Post.new(id: 'post', title: 'New Post', body: 'Body').attributes
+        assert_equal cached_attributes["#{@comment.cache_key}/#{attributes_adapter.cached_name}"], Comment.new(id: 1, body: 'ZOMG A COMMENT').attributes
+        assert_equal cached_attributes["#{@comment.post.cache_key}/#{attributes_adapter.cached_name}"], Post.new(id: 'post', title: 'New Post', body: 'Body').attributes
 
         writer = @comment.post.blog.writer
         writer_cache_key = writer.cache_key
 
-        assert_equal cached_attributes["#{writer_cache_key}/#{attributes.cached_name}"], Author.new(id: 'author', name: 'Joao M. D. Moura').attributes
+        assert_equal cached_attributes["#{writer_cache_key}/#{attributes_adapter.cached_name}"], Author.new(id: 'author', name: 'Joao M. D. Moura').attributes
       end
     end
 
@@ -453,6 +453,30 @@ module ActiveModelSerializers
       }
       assert_equal(@spam_hash, expected_result)
     end
+
+    # def test_fragment_caching_all_attributes_matches_regular_cache
+    #   child_model = Class.new(ActiveModelSerializers::Model) do
+    #     attributes :id, :name, :body
+    #   end.new(id: 13, name: 'Child Model', body: 'Child Body')
+    #   model = Class.new(ActiveModelSerializers::Model) do
+    #     attributes :id, :name, :title, :child
+    #   end.new(id: 55, name: 'Parent Model', title: 'Cached Parent', child: child_model)
+    #   child_serializer = Class.new(ActiveModel::Serializer) do
+    #     attributes :id, :name,  :body
+    #   end
+    #   Object.const_set(child_serializer, :ChildSerializer)
+    #   cached_serializer = Class.new(ActiveModel::Serializer) do
+    #     cache skip_digest: true
+    #     has_one :child, serializer: ChildSerializer
+    #   end
+    #   fragment_cached_serializer = Class.new(ActiveModel::Serializer) do
+    #     cache only: [:id, :name, :title, :child], skip_digest: true
+    #   end
+    #
+    #   assert_equal(cached_serializer.new(model).as_json, fragment_cached_serializer.new(model).as_json)
+    # ensure
+    #   Object.send(:remove_const, :ChildSerializer)
+    # end
 
     private
 
