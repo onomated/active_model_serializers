@@ -21,7 +21,7 @@ module ActiveModel
       def cached_relationships(include_tree, adapter_instance)
         relationships = {}
         serializer.associations(include_tree).each do |association|
-          relationships[association.key] = cached_relationship(association, include_tree, adapter_instance)
+          relationships[association.key] ||= cached_relationship(association, include_tree, adapter_instance)
         end
 
         relationships
