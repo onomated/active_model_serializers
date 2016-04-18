@@ -177,18 +177,19 @@ module ActiveModel
         # @param include_tree [ActiveModel::Serializer::IncludeTree]
         # @return [Array] all cache_key of collection_serializer
         def object_cache_keys(collection_serializer, adapter_instance, include_tree)
+          adapter_cached_name = adapter_instance.respond_to?(:cached_name) ? adapter_instance.cached_name : adapter_instance
           cache_keys = []
 
           collection_serializer.each do |serializer|
-            cache_keys << object_cache_key(serializer, adapter_instance)
+            cache_keys << object_cache_key(serializer, adapter_cached_name)
 
             serializer.associations(include_tree).each do |association|
               if association.serializer.respond_to?(:each)
                 association.serializer.each do |sub_serializer|
-                  cache_keys << object_cache_key(sub_serializer, adapter_instance)
+                  cache_keys << object_cache_key(sub_serializer, adapter_cached_name)
                 end
               else
-                cache_keys << object_cache_key(association.serializer, adapter_instance)
+                cache_keys << object_cache_key(association.serializer, adapter_cached_name)
               end
             end
           end
@@ -197,10 +198,10 @@ module ActiveModel
         end
 
         # @return [String, nil] the cache_key of the serializer or nil
-        def object_cache_key(serializer, adapter_instance)
+        def object_cache_key(serializer, adapter_cached_name)
           return unless serializer.present? && serializer.object.present?
 
-          serializer.class.cache_enabled? ? serializer.cache_key(adapter_instance.cached_name) : nil
+          serializer.class.cache_enabled? ? serializer.cache_key(adapter_cached_name) : nil
         end
       end
 
