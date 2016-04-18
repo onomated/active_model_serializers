@@ -37,7 +37,8 @@ module ActiveModel
         association_options = association_options.reverse_merge(adapter_instance: adapter_instance, include: include_tree)
 
         if association_serializer.respond_to?(:each)
-          association_options[:cached_attributes] ||= ActiveModel::Serializer.cache_read_multi(association_serializer, adapter_instance, association_include_tree)
+          adapter_cached_name = adapter_instance.respond_to?(:cached_name) ? adapter_instance.cached_name : adapter_instance
+          association_options[:cached_attributes] ||= ActiveModel::Serializer.cache_read_multi(association_serializer, adapter_cached_name, association_include_tree)
           serialize_collection_serializer(association_serializer, association_options)
         else
           association_serializer.serializable_hash(association_options)

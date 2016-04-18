@@ -161,9 +161,8 @@ module ActiveModel
 
         # Read cache from cache_store
         # @return [Hash]
-        def cache_read_multi(collection_serializer, adapter_instance, include_tree)
+        def cache_read_multi(collection_serializer, adapter_cached_name, include_tree)
           return {} if ActiveModelSerializers.config.cache_store.blank?
-          adapter_cached_name = adapter_instance.respond_to?(:cached_name) ? adapter_instance.cached_name : adapter_instance
 
           keys = object_cache_keys(collection_serializer, adapter_cached_name, include_tree)
 
