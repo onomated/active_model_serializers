@@ -47,12 +47,12 @@ module ActiveModel
 
       def serialize_collection_serializer(collection_serializer, serialization_options)
         collection_serializer.map do |each_serializer|
-          each_serializer.serializable_hash(serialization_options)
+          ActiveModel::Serializer::SerializableHash.new(each_serializer).serializable_hash(serialization_options)
         end
       end
 
       def serialize_serializer(serializer, serialization_options)
-        serializer.serializable_hash(serialization_options)
+        ActiveModel::Serializer::SerializableHash.new(serializer).serializable_hash(serialization_options)
       end
 
       private
