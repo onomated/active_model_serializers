@@ -433,7 +433,7 @@ module ActiveModelSerializers
       @role            = Role.new(name: 'Great Author', description: nil)
       @role.author     = [@author]
       @role_serializer = RoleSerializer.new(@role)
-      @role_hash       = @role_serializer.fetch_fragment_cache(ActiveModelSerializers::Adapter.configured_adapter.new(@role_serializer))
+      @role_hash       = RoleSerializer.fetch_fragment_cache(@role_serializer, ActiveModelSerializers::Adapter.configured_adapter.new(@role_serializer))
 
       expected_result = {
         id: @role.id,
@@ -447,7 +447,7 @@ module ActiveModelSerializers
     def test_fragment_fetch_with_namespaced_object
       @spam            = Spam::UnrelatedLink.new(id: 'spam-id-1')
       @spam_serializer = Spam::UnrelatedLinkSerializer.new(@spam)
-      @spam_hash       = @spam_serializer.fetch_fragment_cache(ActiveModelSerializers::Adapter.configured_adapter.new(@spam_serializer))
+      @spam_hash       = Spam::UnrelatedLinkSerializer.fetch_fragment_cache(@spam_serializer, ActiveModelSerializers::Adapter.configured_adapter.new(@spam_serializer))
       expected_result = {
         id: @spam.id
       }
