@@ -454,29 +454,44 @@ module ActiveModelSerializers
       assert_equal(@spam_hash, expected_result)
     end
 
-    # def test_fragment_caching_all_attributes_matches_regular_cache
-    #   child_model = Class.new(ActiveModelSerializers::Model) do
-    #     attributes :id, :name, :body
-    #   end.new(id: 13, name: 'Child Model', body: 'Child Body')
-    #   model = Class.new(ActiveModelSerializers::Model) do
-    #     attributes :id, :name, :title, :child
-    #   end.new(id: 55, name: 'Parent Model', title: 'Cached Parent', child: child_model)
-    #   child_serializer = Class.new(ActiveModel::Serializer) do
-    #     attributes :id, :name,  :body
-    #   end
-    #   Object.const_set(child_serializer, :ChildSerializer)
-    #   cached_serializer = Class.new(ActiveModel::Serializer) do
-    #     cache skip_digest: true
-    #     has_one :child, serializer: ChildSerializer
-    #   end
-    #   fragment_cached_serializer = Class.new(ActiveModel::Serializer) do
-    #     cache only: [:id, :name, :title, :child], skip_digest: true
-    #   end
-    #
-    #   assert_equal(cached_serializer.new(model).as_json, fragment_cached_serializer.new(model).as_json)
-    # ensure
-    #   Object.send(:remove_const, :ChildSerializer)
-    # end
+    class Child < ActiveModelSerializers::Model
+      attr_accessor :id, :name, :body
+    end
+    class Parent < ActiveModelSerializers::Model
+      attr_accessor :id, :name, :title, :child
+    end
+    class ChildSerializer < ActiveModel::Serializer
+      attributes :id, :name, :body
+    end
+    class ParentSerializer < ActiveModel::Serializer
+      attributes :id, :name, :title, :child
+      has_one :child, serializer: ChildSerializer
+    end
+    class CachedParentSerializer < ParentSerializer
+      cache skip_digest: true
+    end
+    class FragmentCachedParentSerializer < ParentSerializer
+      cache only: [:id, :name, :title, :child], skip_digest: true
+    end
+    def test_fragment_caching_all_attributes_matches_regular_cache
+      child = Child.new(id: 13, name: 'Child Model', body: 'Child Body')
+      model = Parent.new(id: 55, name: 'Parent Model', title: 'Cached Parent', child: child)
+      model.attributes[:cache_key] = 'potatoe'
+
+      expected_serialization = {
+        id: 55, name: "Parent Model", title: "Cached Parent",
+        child: {id: 13, name: "Child Model", body: "Child Body"}
+      }
+      assert_equal('potatoe', model.cache_key)
+      assert_equal(expected_serialization, ParentSerializer.new(model).as_json)
+      assert_equal(expected_serialization, CachedParentSerializer.new(model).as_json)
+      assert_equal(expected_serialization, FragmentCachedParentSerializer.new(model).as_json)
+      model.attributes[:name] = 'banana'
+      assert_equal(expected_serialization, CachedParentSerializer.new(model).as_json)
+      assert_equal(expected_serialization, FragmentCachedParentSerializer.new(model).as_json)
+      expected_serialization[:name] = 'banana'
+      assert_equal(expected_serialization, ParentSerializer.new(model).as_json)
+    end
 
     private
 

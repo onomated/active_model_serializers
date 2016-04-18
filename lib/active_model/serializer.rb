@@ -153,6 +153,7 @@ module ActiveModel
     def serializable_hash(options = nil)
       options ||= {}
       options[:include] = ActiveModel::Serializer::IncludeTree.from_include_args(options[:include] || '*')
+      options[:adapter_instance] ||= ActiveModelSerializers::Adapter::Attributes.new(self)
       ActiveModel::Serializer::SerializableHash.new(self).serializable_hash(options)
     end
     alias to_hash serializable_hash
