@@ -33,8 +33,8 @@ module ActiveModel
 
         association_serializer = association.serializer
         association_options = { include: include_tree[association.key] }
-        association_include_tree = ActiveModel::Serializer::IncludeTree.from_include_args(association_options[:include] || '*')
-        association_options.reverse_merge!(adapter_instance: adapter_instance, include: include_tree)
+        association_include_tree = build_include_tree(association_options[:include])
+        association_options = association_options.reverse_merge(adapter_instance: adapter_instance, include: include_tree)
 
         if association_serializer.respond_to?(:each)
           association_options[:cached_attributes] ||= ActiveModel::Serializer.cache_read_multi(association_serializer, adapter_instance, association_include_tree)
@@ -52,6 +52,12 @@ module ActiveModel
 
       def serialize_serializer(serializer, serialization_options)
         serializer.serializable_hash(serialization_options)
+      end
+
+      private
+
+      def build_include_tree(includes)
+        ActiveModel::Serializer::IncludeTree.from_include_args(includes || '*')
       end
     end
   end

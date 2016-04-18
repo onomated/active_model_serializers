@@ -299,13 +299,14 @@ module ActiveModel
       end
 
       def cache_key(adapter_instance)
-        return @cache_key if defined?(@cache_key)
-
-        parts = []
-        parts << object_cache_key
-        parts << adapter_instance.cached_name
-        parts << self.class._cache_digest unless self.class._skip_digest?
-        @cache_key = parts.join('/')
+        @cache_key ||= {}
+        @cache_key.fetch(adapter_instance) do
+          parts = []
+          parts << object_cache_key
+          parts << adapter_instance.cached_name
+          parts << self.class._cache_digest unless self.class._skip_digest?
+          @cache_key[adapter_instance] = parts.join('/')
+        end
       end
 
       # Use object's cache_key if available, else derive a key from the object
