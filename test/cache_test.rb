@@ -252,11 +252,11 @@ module ActiveModelSerializers
       attributes_serialization = serializable_alert.as_json
       assert_equal expected_cached_attributes, alert.attributes
       assert_equal alert.attributes, attributes_serialization
-      attributes_cache_key = serializable_alert.adapter.serializer.cache_key(serializable_alert.adapter)
+      attributes_cache_key = serializable_alert.adapter.serializer.cache_key(serializable_alert.adapter.cached_name)
       assert_equal attributes_serialization, cache_store.fetch(attributes_cache_key)
 
       serializable_alert = serializable(alert, serializer: AlertSerializer, adapter: :json_api)
-      jsonapi_cache_key = serializable_alert.adapter.serializer.cache_key(serializable_alert.adapter)
+      jsonapi_cache_key = serializable_alert.adapter.serializer.cache_key(serializable_alert.adapter.cached_name)
       # Assert cache keys differ
       refute_equal attributes_cache_key, jsonapi_cache_key
       # Assert (cached) serializations differ

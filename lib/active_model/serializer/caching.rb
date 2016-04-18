@@ -200,14 +200,14 @@ module ActiveModel
         def object_cache_key(serializer, adapter_instance)
           return unless serializer.present? && serializer.object.present?
 
-          serializer.class.cache_enabled? ? serializer.cache_key(adapter_instance) : nil
+          serializer.class.cache_enabled? ? serializer.cache_key(adapter_instance.cached_name) : nil
         end
       end
 
       def cache_check(adapter_instance)
         if self.class.cache_enabled?
           cached_attributes = instance_options[:cached_attributes] || {}
-          key = cache_key(adapter_instance)
+          key = cache_key(adapter_instance.cached_name)
           cached_attributes.fetch(key) do
             self.class.cache_store.fetch(key, self.class._cache_options) do
               yield
@@ -298,14 +298,14 @@ module ActiveModel
         Object.const_set(name, Class.new(ActiveModel::Serializer))
       end
 
-      def cache_key(adapter_instance)
+      def cache_key(adapter_cached_name)
         @cache_key ||= {}
-        @cache_key.fetch(adapter_instance) do
+        @cache_key.fetch(adapter_cached_name) do
           parts = []
           parts << object_cache_key
-          parts << adapter_instance.cached_name
+          parts << adapter_cached_name if adapter_cached_name
           parts << self.class._cache_digest unless self.class._skip_digest?
-          @cache_key[adapter_instance] = parts.join('/')
+          @cache_key[adapter_cached_name] = parts.join('/')
         end
       end
 
