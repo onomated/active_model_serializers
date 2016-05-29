@@ -10,6 +10,8 @@ Features:
 
 Fixes:
 - [#1287](https://github.com/rails-api/active_model_serializers/pull/1287) Pass `fields` options from adapter to serializer. (@vasilakisfil)
+- [#1754](https://github.com/rails-api/active_model_serializers/pull/1754) Fixes #1759, Grape integration, improves serialization_context
+  missing error message on pagination. Document overriding CollectionSerializer#paginated?. (@bf4)
 - [#1710](https://github.com/rails-api/active_model_serializers/pull/1710) Prevent association loading when `include_data` option
   is set to `false`. (@groyoh)
 - [#1747](https://github.com/rails-api/active_model_serializers/pull/1747) Improve jsonapi mime type registration for Rails 5 (@remear)
