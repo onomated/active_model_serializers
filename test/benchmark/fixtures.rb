@@ -48,13 +48,13 @@ end
 Rails.configuration.serializers << CachingAuthorSerializer
 
 class CachingCommentSerializer < CommentSerializer
-  cache expires_in: 1.day, skip_digest: true
+  cache expires_in: 1.day.to_i, skip_digest: true
 end
 Rails.configuration.serializers << CachingCommentSerializer
 
 # see https://github.com/rails-api/active_model_serializers/pull/1690/commits/68715b8f99bc29677e8a47bb3f305f23c077024b#r60344532
 class CachingPostSerializer < ActiveModel::Serializer
-  cache key: 'post', expires_in: 0.1, skip_digest: true
+  cache key: 'post', expires_in: 1.day.to_i, skip_digest: true
 
   attributes :id, :title, :body
 
@@ -89,7 +89,7 @@ Rails.configuration.serializers << CachingCommentSerializer
 
 # see https://github.com/rails-api/active_model_serializers/pull/1690/commits/68715b8f99bc29677e8a47bb3f305f23c077024b#r60344532
 class FragmentCachingPostSerializer < ActiveModel::Serializer
-  cache key: 'post', expires_in: 0.1, skip_digest: true
+  cache key: 'post', expires_in: 1.day.to_i, skip_digest: true
 
   attributes :id, :title, :body
 
