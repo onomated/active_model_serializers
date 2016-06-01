@@ -113,12 +113,13 @@ module ActiveModel
         reflection_options[:include_data] = @_include_data
 
         if serializer_class
-          begin
-            serializer = serializer_class.new(
+          serializer = catch :no_serializer do
+            serializer_class.new(
               association_value,
               serializer_options(subject, parent_serializer_options, reflection_options)
             )
-          rescue ActiveModel::Serializer::CollectionSerializer::NoSerializerError
+          end
+          if serializer.nil?
             reflection_options[:virtual_value] = association_value.try(:as_json) || association_value
           end
         elsif !association_value.nil? && !association_value.instance_of?(Object)

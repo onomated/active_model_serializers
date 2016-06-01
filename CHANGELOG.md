@@ -6,6 +6,7 @@ Breaking changes:
 
 Features:
 - [#1426](https://github.com/rails-api/active_model_serializers/pull/1426) Add ActiveModelSerializers.config.default_includes (@empact)
+- [TBD](TBD) Replace raising/rescuing `CollectionSerializer::NoSerializerError`, throw/catch `:no_serializer`. (@bf4)
 
 Fixes:
 - [#1710](https://github.com/rails-api/active_model_serializers/pull/1710) Prevent association loading when `include_data` option

@@ -1,7 +1,6 @@
 module ActiveModel
   class Serializer
     class CollectionSerializer
-      NoSerializerError = Class.new(StandardError)
       include Enumerable
       delegate :each, to: :@serializers
 
@@ -15,8 +14,9 @@ module ActiveModel
         @serializers = resources.map do |resource|
           serializer_class = options.fetch(:serializer) { serializer_context_class.serializer_for(resource) }
 
-          if serializer_class.nil? # rubocop:disable Style/GuardClause
-            fail NoSerializerError, "No serializer found for resource: #{resource.inspect}"
+          if serializer_class.nil?
+            ActiveModelSerializers.logger.debug "No serializer found for resource: #{resource.inspect}"
+            throw :no_serializer
           else
             serializer_class.new(resource, options.except(:serializer))
           end
